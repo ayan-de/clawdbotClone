@@ -3,18 +3,19 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { IncomingMessage, ChatEvent } from '../adapters/chat-adapter.interface';
 import { IMessageRouterService } from '../adapters/interfaces/message-router.interface';
 import { ISessionService } from '../session/interfaces/session.service.interface';
-import { UsersService } from '../users/users.service';
-import { User } from '../domain/entities/user.entity';
+import { UserOrchestrationService } from './user-orchestration.service';
+import { DesktopSelectorService } from './desktop-selector.service';
 import { ICommandExecutionService } from './interfaces/command-execution.interface';
 import { IDesktopGateway } from '../../presentation/websocket/interfaces/desktop-gateway.interface';
 
 /**
- * Command Execution Service
- * Manages the execution of commands on connected desktops
+ * Command Orchestrator Service
+ * Coordinates the command execution flow between services
+ * Follows Single Responsibility Principle - focused solely on orchestration
  */
 @Injectable()
-export class CommandExecutionService implements ICommandExecutionService {
-    private readonly logger = new Logger(CommandExecutionService.name);
+export class CommandOrchestratorService implements ICommandExecutionService {
+    private readonly logger = new Logger(CommandOrchestratorService.name);
     // Track running commands by session ID
     private readonly runningCommands = new Map<string, boolean>();
 
@@ -22,35 +23,24 @@ export class CommandExecutionService implements ICommandExecutionService {
         private readonly desktopGateway: IDesktopGateway,
         private readonly messageRouter: IMessageRouterService,
         private readonly sessionService: ISessionService,
-        private readonly usersService: UsersService,
+        private readonly userOrchestration: UserOrchestrationService,
+        private readonly desktopSelector: DesktopSelectorService,
     ) { }
 
     /**
-     * Handle incoming chat message
+     * Handle incoming chat message from platforms
      */
     @OnEvent(ChatEvent.MESSAGE_RECEIVED)
-    async handleIncomingMessage(message: IncomingMessage) {
+    async handleIncomingMessage(message: IncomingMessage): Promise<void> {
         this.logger.log(`Processing message from ${message.userId} (${message.platform}): ${message.content}`);
 
         try {
             // 1. Find or create user
-            let user = await this.usersService.findEntityByEmail(`${message.platform}_${message.userId}@bridge.local`);
-
-            if (!user) {
-                // Create guest user
-                // We have to use the DTO-based create method or direct repository if exposed.
-                // UsersService.create returns DTO.
-                // Let's rely on create then findEntity.
-                await this.usersService.create({
-                    email: `${message.platform}_${message.userId}@bridge.local`,
-                    firstName: message.username || 'Guest',
-                    lastName: message.platform,
-                    displayName: message.username || `Guest ${message.userId}`,
-                });
-                user = await this.usersService.findEntityByEmail(`${message.platform}_${message.userId}@bridge.local`);
-            }
-
-            if (!user) throw new Error("Failed to create user");
+            const user = await this.userOrchestration.findOrCreateUser(
+                message.platform,
+                message.userId,
+                message.username,
+            );
 
             // 2. Get or create session
             const session = await this.sessionService.getOrCreateSession(user, message.platform, {
@@ -59,57 +49,29 @@ export class CommandExecutionService implements ICommandExecutionService {
                 username: message.username,
             });
 
-            // 3. Find available desktop
-            // Check if session already has attached desktop?
-            let desktopId = session.desktopId;
-
-            // Verify desktop is still connected
-            if (!desktopId || !this.desktopGateway.sendCommand(desktopId, { type: 'ping' })) {
-                // Find new desktop
-                desktopId = this.desktopGateway.getFirstAvailableDesktop() || undefined; // Handle null
-                if (desktopId) {
-                    await this.sessionService.attachDesktop(session.id, desktopId);
-                }
-            }
+            // 3. Find or attach desktop
+            const desktopId = await this.desktopSelector.findOrAttachDesktop(session.id);
 
             if (!desktopId) {
-                this.logger.warn(`No desktops available for session ${session.id}`);
                 await this.messageRouter.sendToPlatform(
                     message.platform,
                     message.userId,
-                    "⚠️ No desktop terminals available. Please connect a desktop client."
+                    '⚠️ No desktop terminals available. Please connect a desktop client.',
                 );
                 return;
             }
 
-            // 4. Send to desktop
-            const success = this.desktopGateway.sendCommand(desktopId, {
-                type: 'execute',
-                sessionId: session.id, // Use UUID
-                command: message.content,
+            // 4. Execute command
+            await this.executeCommand(session.id, message.content, {
                 userMessage: message.content,
+                userId: message.userId,
             });
-
-            if (success) {
-                await this.messageRouter.sendToPlatform(
-                    message.platform,
-                    message.userId,
-                    `⏳ Executing...`
-                );
-            } else {
-                await this.messageRouter.sendToPlatform(
-                    message.platform,
-                    message.userId,
-                    "❌ Failed to reach desktop terminal."
-                );
-            }
-
         } catch (error) {
             this.logger.error(`Error processing message: ${error}`);
             await this.messageRouter.sendToPlatform(
                 message.platform,
                 message.userId,
-                "❌ Internal Error"
+                '❌ Internal Error',
             );
         }
     }
@@ -118,7 +80,7 @@ export class CommandExecutionService implements ICommandExecutionService {
      * Handle command result from desktop
      */
     @OnEvent('command.result')
-    async handleCommandResult(result: any) {
+    async handleCommandResult(result: any): Promise<void> {
         const { sessionId, stdout, stderr, error } = result;
 
         try {
@@ -137,26 +99,16 @@ export class CommandExecutionService implements ICommandExecutionService {
                 return;
             }
 
-            let output = '';
-            if (stdout) output += stdout;
-            if (stderr) output += `\nCreate Error:\n${stderr}`;
-            if (error) output += `\nSystem Error: ${error}`;
+            // Mark command as completed
+            this.runningCommands.delete(sessionId);
 
-            if (!output.trim()) {
-                output = "✅ Done (no output).";
-            }
+            // Format output
+            const formattedOutput = this.formatCommandOutput(stdout, stderr, error);
 
             // Send result back to user
-            const formattedOutput = `\`\`\`\n${output}\n\`\`\``;
-
-            await this.messageRouter.sendToPlatform(
-                platform,
-                userId,
-                formattedOutput
-            );
+            await this.messageRouter.sendToPlatform(platform, userId, formattedOutput);
 
             this.logger.log(`Result sent to ${platform} user ${userId} (Session: ${sessionId})`);
-
         } catch (err) {
             this.logger.error(`Failed to handle command result: ${err}`);
         }
@@ -168,7 +120,7 @@ export class CommandExecutionService implements ICommandExecutionService {
     async executeCommand(
         sessionId: string,
         command: string,
-        options?: { userMessage?: string; userId?: string }
+        options?: { userMessage?: string; userId?: string },
     ): Promise<boolean> {
         try {
             const session = await this.sessionService.getSession(sessionId);
@@ -197,7 +149,7 @@ export class CommandExecutionService implements ICommandExecutionService {
                     await this.messageRouter.sendToPlatform(
                         session.metadata.platform,
                         session.metadata.platformUserId,
-                        `⏳ Executing...`
+                        '⏳ Executing...',
                     );
                 }
             }
@@ -246,12 +198,28 @@ export class CommandExecutionService implements ICommandExecutionService {
             return 'running';
         }
 
-        // Check if session exists
         const session = await this.sessionService.getSession(sessionId);
         if (!session) {
             return 'failed';
         }
 
         return 'idle';
+    }
+
+    /**
+     * Format command output for display
+     */
+    private formatCommandOutput(stdout?: string, stderr?: string, error?: string): string {
+        let output = '';
+
+        if (stdout) output += stdout;
+        if (stderr) output += `\nCreate Error:\n${stderr}`;
+        if (error) output += `\nSystem Error: ${error}`;
+
+        if (!output.trim()) {
+            output = '✅ Done (no output).';
+        }
+
+        return `\`\`\`\n${output}\n\`\`\``;
     }
 }

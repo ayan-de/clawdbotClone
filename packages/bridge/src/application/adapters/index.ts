@@ -4,3 +4,6 @@ export * from './telegram.adapter';
 export * from './adapter-factory.service';
 export * from './message-router.service';
 export * from './adapters.module';
+export * from './interfaces';
+export * from './transformers';
+export * from './message-transformer.interface';

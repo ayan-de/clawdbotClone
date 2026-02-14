@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
-import { CommandExecutionService } from './command-execution.service';
+import { CommandOrchestratorService } from './command-orchestrator.service';
+import { UserOrchestrationService } from './user-orchestration.service';
+import { DesktopSelectorService } from './desktop-selector.service';
 import { WebSocketModule } from '../../presentation/websocket/websocket.module';
 import { AdaptersModule } from '../adapters/adapters.module';
 import { SessionModule } from '../session/session.module';
@@ -9,6 +11,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 /**
  * Execution Module
  * Coordinates command execution between Adapters and Desktop
+ * Follows Single Responsibility Principle - split into focused services
  */
 @Module({
     imports: [
@@ -18,7 +21,15 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
         UsersModule,
         EventEmitterModule,
     ],
-    providers: [CommandExecutionService],
-    exports: [CommandExecutionService],
+    providers: [
+        CommandOrchestratorService,
+        UserOrchestrationService,
+        DesktopSelectorService,
+    ],
+    exports: [
+        CommandOrchestratorService,
+        UserOrchestrationService,
+        DesktopSelectorService,
+    ],
 })
 export class ExecutionModule { }

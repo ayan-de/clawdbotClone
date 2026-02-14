@@ -1,5 +1,9 @@
 // ... imports
 import { ChatAdapter } from '@orbit/common';
+import { IChatSender } from './interfaces/chat-sender.interface';
+import { IChatReceiver } from './interfaces/chat-receiver.interface';
+import { ILifecycleAdapter } from './interfaces/lifecycle-adapter.interface';
+import { IAdapterInfo } from './interfaces/adapter-info.interface';
 
 /**
  * Chat Event Constants
@@ -26,33 +30,17 @@ export interface IncomingMessage {
 
 /**
  * Extended Chat Adapter Interface
- * Adds additional functionality on top of common ChatAdapter
+ * Composes smaller, focused interfaces (ISP compliant)
+ * Extends common ChatAdapter from @orbit/common
  */
-export interface IChatAdapter extends ChatAdapter {
-  /**
-   * Initialize the adapter
-   */
-  initialize(): Promise<void>;
-
-  /**
-   * Disconnect the adapter
-   */
-  disconnect(): Promise<void>;
-
-  /**
-   * Check if adapter is connected
-   */
-  isConnected(): boolean;
-
-  /**
-   * Get adapter name
-   */
-  getName(): string;
-
-  /**
-   * Process incoming update (webhook)
-   */
-  processUpdate(update: any): Promise<void>;
+export interface IChatAdapter
+  extends ChatAdapter,
+    IChatSender,
+    IChatReceiver,
+    ILifecycleAdapter,
+    IAdapterInfo {
+  // All methods are inherited from composed interfaces
+  // This interface serves as a convenience facade
 }
 
 /**

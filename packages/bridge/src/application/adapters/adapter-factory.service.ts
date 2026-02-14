@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { BridgeLogger } from '../../logger';
 import { IChatAdapter, AdapterConfig } from './chat-adapter.interface';
 import { TelegramAdapter } from './telegram.adapter';
+import { IAdapterFactoryService } from './interfaces/adapter-factory.interface';
 
 /**
  * Adapter Factory Service
@@ -14,7 +15,7 @@ import { TelegramAdapter } from './telegram.adapter';
  * await telegramAdapter.sendMessage(userId, message);
  */
 @Injectable()
-export class AdapterFactoryService {
+export class AdapterFactoryService implements IAdapterFactoryService {
   private readonly logger = new Logger(AdapterFactoryService.name);
   private readonly adapters = new Map<string, IChatAdapter>();
   private readonly config = new Map<string, AdapterConfig>();

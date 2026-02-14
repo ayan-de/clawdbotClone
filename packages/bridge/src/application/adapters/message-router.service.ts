@@ -1,20 +1,45 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { AdapterFactoryService } from './adapter-factory.service';
+import { IAdapterFactoryService } from './interfaces/adapter-factory.interface';
 import { ChatEvent, IncomingMessage } from './chat-adapter.interface';
+import { IMessageRouterService } from './interfaces/message-router.interface';
+import { MessageTransformer } from './message-transformer.interface';
+import { TelegramTransformer, DiscordTransformer, SlackTransformer } from './transformers';
 
 /**
  * Message Router Service
  * Routes messages to appropriate chat platform adapters
  * Follows Strategy Pattern - selects adapter based on platform
+ * Uses Strategy Pattern for message transformers - no switch statements
  */
 @Injectable()
-export class MessageRouterService {
+export class MessageRouterService implements IMessageRouterService {
   private readonly logger = new Logger(MessageRouterService.name);
+  private readonly transformers = new Map<string, MessageTransformer>();
 
   constructor(
-    private readonly adapterFactory: AdapterFactoryService,
-  ) { }
+    private readonly adapterFactory: IAdapterFactoryService,
+  ) {
+    this.initializeTransformers();
+  }
+
+  /**
+   * Initialize platform-specific message transformers
+   * Follows Open/Closed Principle - add new platforms without modifying this method
+   */
+  private initializeTransformers(): void {
+    const transformers: MessageTransformer[] = [
+      new TelegramTransformer(),
+      new DiscordTransformer(),
+      new SlackTransformer(),
+    ];
+
+    for (const transformer of transformers) {
+      this.transformers.set(transformer.getPlatform(), transformer);
+    }
+
+    this.logger.debug(`Initialized ${this.transformers.size} message transformers`);
+  }
 
   /**
    * Handle incoming message event
@@ -148,66 +173,36 @@ export class MessageRouterService {
 
   /**
    * Transform message for platform-specific formatting
-   * Can be extended for markdown, HTML, etc.
+   * Uses Strategy Pattern - no switch statements (OCP compliant)
    */
   transformMessage(
     platform: string,
     message: string,
     options?: { format?: 'plain' | 'markdown' | 'html' },
   ): string {
-    // Default formatting
-    let formattedMessage = message;
+    const transformer = this.transformers.get(platform.toLowerCase());
 
-    // Platform-specific transformations
-    switch (platform.toLowerCase()) {
-      case 'telegram':
-        // Telegram supports Markdown v2
-        if (options?.format === 'markdown') {
-          formattedMessage = this.formatTelegramMarkdown(message);
-        }
-        break;
-
-      case 'discord':
-        // Discord supports Markdown
-        if (options?.format === 'markdown') {
-          formattedMessage = this.formatDiscordMarkdown(message);
-        }
-        break;
-
-      case 'slack':
-        // Slack has its own formatting
-        formattedMessage = this.formatSlackMessage(message);
-        break;
-
-      default:
-        // No transformation needed
-        break;
+    if (!transformer) {
+      this.logger.debug(`No transformer found for platform: ${platform}`);
+      return message;
     }
 
-    return formattedMessage;
+    return transformer.transform(message, options);
   }
 
   /**
-   * Format message for Telegram Markdown
+   * Register a custom message transformer
+   * Allows dynamic registration of new platform transformers
    */
-  private formatTelegramMarkdown(message: string): string {
-    // Basic Markdown formatting can be added here
-    return message;
+  registerTransformer(transformer: MessageTransformer): void {
+    this.transformers.set(transformer.getPlatform(), transformer);
+    this.logger.debug(`Registered message transformer for: ${transformer.getPlatform()}`);
   }
 
   /**
-   * Format message for Discord Markdown
+   * Get available transformer platforms
    */
-  private formatDiscordMarkdown(message: string): string {
-    // Discord-specific Markdown formatting
-    return message;
-  }
-
-  /**
-   * Format message for Slack
-   */
-  private formatSlackMessage(message: string): string {
-    // Slack-specific formatting
-    return message;
+  getAvailableTransformerPlatforms(): string[] {
+    return Array.from(this.transformers.keys());
   }
 }

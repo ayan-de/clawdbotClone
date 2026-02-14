@@ -11,6 +11,7 @@ import { Server, Socket } from 'socket.io';
 import { BridgeLogger } from '../../logger';
 import { BaseWebSocketGateway } from './base-websocket.gateway';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { IDesktopGateway } from './interfaces/desktop-gateway.interface';
 
 /**
  * Desktop WebSocket Gateway
@@ -24,7 +25,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 })
 export class DesktopGateway
     extends BaseWebSocketGateway
-    implements OnGatewayConnection, OnGatewayDisconnect {
+    implements IDesktopGateway, OnGatewayConnection, OnGatewayDisconnect {
 
     private readonly desktopSockets = new Map<string, Socket>();
 
@@ -105,5 +106,19 @@ export class DesktopGateway
     getFirstAvailableDesktop(): string | null {
         if (this.desktopSockets.size === 0) return null;
         return this.desktopSockets.keys().next().value || null;
+    }
+
+    /**
+     * Get all connected desktop socket IDs
+     */
+    getConnectedDesktops(): string[] {
+        return Array.from(this.desktopSockets.keys());
+    }
+
+    /**
+     * Check if a desktop socket is connected
+     */
+    isDesktopConnected(socketId: string): boolean {
+        return this.desktopSockets.has(socketId);
     }
 }
