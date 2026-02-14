@@ -4,6 +4,7 @@ import { LoggerModule } from './logger';
 import { UnitOfWorkModule } from './infrastructure';
 import { AuthModule } from './application/auth';
 import { UsersModule } from './application/users';
+import { WebSocketModule } from './presentation/websocket';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './application/auth/guards';
 
@@ -28,9 +29,8 @@ import { JwtAuthGuard } from './application/auth/guards';
     AuthModule,
     UsersModule,
 
-    // Presentation Layer (to be added)
-    // ControllersModule,
-    // WebSocketModule,
+    // Presentation Layer
+    WebSocketModule,
 
     // Domain Layer is shared via @orbit/common package
   ],
