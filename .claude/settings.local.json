@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm install:*)",
+      "Bash(pnpm run build)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm --filter @orbit/common build:*)",
+      "Bash(pnpm --filter @orbit/desktop build:*)",
+      "Bash(pnpm --filter @orbit/bridge build:*)",
+      "Bash(ls:*)",
+      "Bash(pnpm build:*)"
+    ]
+  }
+}
