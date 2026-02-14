@@ -4,6 +4,7 @@ import { LoggerModule } from './logger';
 import { UnitOfWorkModule } from './infrastructure';
 import { AuthModule } from './application/auth';
 import { UsersModule } from './application/users';
+import { SessionModule } from './application/session/session.module';
 import { WebSocketModule } from './presentation/websocket';
 import { AdaptersModule } from './application/adapters';
 import { ExecutionModule } from './application/execution/execution.module';
@@ -30,6 +31,7 @@ import { JwtAuthGuard } from './application/auth/guards';
     // Application Layer
     AuthModule,
     UsersModule,
+    SessionModule,
     ExecutionModule,
 
     // Presentation Layer

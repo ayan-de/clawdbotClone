@@ -5,6 +5,7 @@ import { AuthService } from '../../application/auth';
 import { BridgeWebSocketGateway } from './bridge-websocket.gateway';
 import { DesktopGateway } from './desktop.gateway';
 import { ConfigModule } from '../../config';
+import { SessionModule } from '../../application/session/session.module';
 
 /**
  * WebSocket Module
@@ -12,7 +13,7 @@ import { ConfigModule } from '../../config';
  * Follows SOLID - Single Responsibility: Only handles WebSocket connections
  */
 @Module({
-  imports: [ConfigModule, EventEmitterModule],
+  imports: [ConfigModule, EventEmitterModule, SessionModule],
   providers: [
     BridgeLogger,
     {

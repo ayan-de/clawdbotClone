@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { CommandExecutionService } from './command-execution.service';
 import { WebSocketModule } from '../../presentation/websocket/websocket.module';
 import { AdaptersModule } from '../adapters/adapters.module';
+import { SessionModule } from '../session/session.module';
+import { UsersModule } from '../users/users.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 
 /**
@@ -12,6 +14,8 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     imports: [
         WebSocketModule,
         AdaptersModule,
+        SessionModule,
+        UsersModule,
         EventEmitterModule,
     ],
     providers: [CommandExecutionService],

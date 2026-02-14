@@ -7,13 +7,14 @@ import {
   ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { UnauthorizedException, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from '../../application/auth';
 import { BridgeLogger } from '../../logger';
 import { BaseWebSocketGateway } from './base-websocket.gateway';
 import { GatewayAuth } from './decorators';
 import { User } from '../../application/domain/entities';
+import { SessionService } from '../../application/session/session.service';
 
 /**
  * Bridge WebSocket Gateway
@@ -33,12 +34,12 @@ import { User } from '../../application/domain/entities';
 })
 export class BridgeWebSocketGateway
   extends BaseWebSocketGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
-{
+  implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     bridgeLogger: BridgeLogger,
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
+    private readonly sessionService: SessionService,
   ) {
     super(bridgeLogger);
   }
@@ -260,26 +261,40 @@ export class BridgeWebSocketGateway
    * Handle session join
    */
   @SubscribeMessage('session:join')
-  handleSessionJoin(
+  async handleSessionJoin(
     @ConnectedSocket() client: Socket,
     @MessageBody() body: { sessionId: string },
     @GatewayAuth() user: User,
-  ): void {
-    const { sessionId } = body;
+  ): Promise<void> {
+    try {
+      const { sessionId } = body;
 
-    // Validate session (to be implemented)
+      const session = await this.sessionService.getSession(sessionId);
 
-    client.join(`session:${sessionId}`);
-    (client as any).sessionId = sessionId;
+      if (!session) {
+        throw new NotFoundException(`Session ${sessionId} not found`);
+      }
 
-    this.logger.log(
-      `Client joined session: ${sessionId} by ${user.email}`,
-    );
+      if (session.userId !== user.id) {
+        throw new ForbiddenException(`You do not have access to session ${sessionId}`);
+      }
 
-    client.emit('session:created', {
-      sessionId,
-      userId: user.id,
-    });
+      client.join(`session:${sessionId}`);
+      (client as any).sessionId = sessionId;
+
+      this.logger.log(
+        `Client joined session: ${sessionId} by ${user.email}`,
+      );
+
+      client.emit('session:joined', {
+        sessionId,
+        userId: user.id,
+        status: 'ok'
+      });
+    } catch (error: any) {
+      this.logger.error(`Session join failed: ${error.message}`);
+      client.emit('error', { message: error.message });
+    }
   }
 
   /**

@@ -20,7 +20,7 @@ import { IUnitOfWork } from '../../infrastructure';
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
-  constructor(private readonly unitOfWork: IUnitOfWork) {}
+  constructor(private readonly unitOfWork: IUnitOfWork) { }
 
   /**
    * Get user repository
@@ -95,6 +95,14 @@ export class UsersService {
     }
 
     return this.toResponseDto(user);
+  }
+
+  /**
+   * Find user entity by email (internal use)
+   */
+  async findEntityByEmail(email: string): Promise<User | null> {
+    const userRepo = this.getUserRepository();
+    return userRepo.findOne({ where: { email } });
   }
 
   /**
