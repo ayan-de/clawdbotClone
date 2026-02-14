@@ -21,6 +21,10 @@ export class EnvConfig {
   // Database Config
   @IsString()
   @IsOptional()
+  DATABASE_URL: string = ''; // Generic database URL
+
+  @IsString()
+  @IsOptional()
   NEON_DATABASE_URL: string = ''; // Neon database connection string
 
   @IsString()

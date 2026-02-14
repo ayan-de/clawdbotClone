@@ -5,34 +5,34 @@ import { Session } from '../../../application/domain/entities/session.entity';
  * Defines the contract for session data access operations
  * Follows Dependency Inversion Principle - high-level modules depend on abstractions
  */
-export interface ISessionRepository {
+export abstract class ISessionRepository {
     /**
      * Create a new session
      */
-    create(session: Partial<Session>): Promise<Session>;
+    abstract create(session: Partial<Session>): Promise<Session>;
 
     /**
      * Find an active session by user ID
      */
-    findActiveByUserId(userId: string): Promise<Session | null>;
+    abstract findActiveByUserId(userId: string): Promise<Session | null>;
 
     /**
      * Find a session by ID
      */
-    findById(id: string): Promise<Session | null>;
+    abstract findById(id: string): Promise<Session | null>;
 
     /**
      * Update a session
      */
-    update(id: string, update: Partial<Session>): Promise<void>;
+    abstract update(id: string, update: Partial<Session>): Promise<void>;
 
     /**
      * Delete a session by ID
      */
-    delete(id: string): Promise<void>;
+    abstract delete(id: string): Promise<void>;
 
     /**
      * Find all sessions for a user
      */
-    findByUserId(userId: string): Promise<Session[]>;
+    abstract findByUserId(userId: string): Promise<Session[]>;
 }

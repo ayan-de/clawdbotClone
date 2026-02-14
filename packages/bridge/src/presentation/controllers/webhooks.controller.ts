@@ -7,7 +7,7 @@ import {
     Logger,
     HttpCode,
 } from '@nestjs/common';
-import { AdapterFactoryService } from '../../application/adapters/adapter-factory.service';
+import { IAdapterFactoryService } from '../../application/adapters/interfaces/adapter-factory.interface';
 
 /**
  * Webhooks Controller
@@ -17,7 +17,7 @@ import { AdapterFactoryService } from '../../application/adapters/adapter-factor
 export class WebhooksController {
     private readonly logger = new Logger(WebhooksController.name);
 
-    constructor(private readonly adapterFactory: AdapterFactoryService) { }
+    constructor(private readonly adapterFactory: IAdapterFactoryService) { }
 
     /**
      * Handle platform webhook

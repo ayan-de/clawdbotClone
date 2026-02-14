@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "logs/.bbabe8e6176789b9c22017eb730de2cf42c028e6-audit.json",
+    "files": [
+        {
+            "date": 1771102484720,
+            "name": "logs/OrbitBridge-2026-02-15.log",
+            "hash": "18818225301399ab73e92aa6608571db3abebb66c52645e40081b0bb8bf311a9"
+        }
+    ],
+    "hashType": "sha256"
+}

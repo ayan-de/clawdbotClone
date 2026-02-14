@@ -5,21 +5,21 @@ import { IncomingMessage } from '../chat-adapter.interface';
  * Defines the contract for message routing between platforms and adapters
  * Follows Dependency Inversion Principle - high-level modules depend on abstractions
  */
-export interface IMessageRouterService {
+export abstract class IMessageRouterService {
     /**
      * Handle incoming message event
      */
-    handleIncomingMessage(message: IncomingMessage): void;
+    abstract handleIncomingMessage(message: IncomingMessage): void;
 
     /**
      * Send message to a specific platform
      */
-    sendToPlatform(platform: string, userId: string, message: string): Promise<void>;
+    abstract sendToPlatform(platform: string, userId: string, message: string): Promise<void>;
 
     /**
      * Send stream to a specific platform
      */
-    sendStreamToPlatform(
+    abstract sendStreamToPlatform(
         platform: string,
         userId: string,
         data: ReadableStream
@@ -29,12 +29,12 @@ export interface IMessageRouterService {
      * Send message with platform auto-detection
      * Supports format: "platform:userId" or just "userId"
      */
-    sendWithPlatformDetection(userIdWithPlatform: string, message: string): Promise<void>;
+    abstract sendWithPlatformDetection(userIdWithPlatform: string, message: string): Promise<void>;
 
     /**
      * Transform message for platform-specific formatting
      */
-    transformMessage(
+    abstract transformMessage(
         platform: string,
         message: string,
         options?: { format?: 'plain' | 'markdown' | 'html' }
@@ -43,18 +43,18 @@ export interface IMessageRouterService {
     /**
      * Get list of available platforms
      */
-    getAvailablePlatforms(): string[];
+    abstract getAvailablePlatforms(): string[];
 
     /**
      * Check if a platform is available
      */
-    isPlatformAvailable(platform: string): boolean;
+    abstract isPlatformAvailable(platform: string): boolean;
 
     /**
      * Broadcast message to multiple platforms/users
      * Returns map of platform to array of success/failure indicators
      */
-    broadcast(
+    abstract broadcast(
         userIdsByPlatform: Record<string, string[]>,
         message: string
     ): Promise<Map<string, number[]>>;

@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
+import { BridgeLogger } from './logger/logger.service';
 import { AppModule } from './app.module';
 
 /**
@@ -11,13 +11,13 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     // Enable graceful shutdown
-    logger: false, // We'll use our custom logger
+    // logger: false, // We'll use our custom logger
   });
 
   const configService = app.get(ConfigService);
 
   // Get logger instance
-  const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
+  const logger = app.get(BridgeLogger);
   app.useLogger(logger);
 
   // Enable CORS with configuration
@@ -52,7 +52,14 @@ async function bootstrap() {
   logger.log(`🌍 CORS Origin: ${corsOrigin}`, 'Bootstrap');
 
   // Graceful shutdown handlers
+  let isShuttingDown = false;
+
   const shutdown = async (signal: string) => {
+    if (isShuttingDown) {
+      return;
+    }
+    isShuttingDown = true;
+
     logger.log(`⚠️  Received ${signal}, shutting down gracefully...`, 'Bootstrap');
 
     try {

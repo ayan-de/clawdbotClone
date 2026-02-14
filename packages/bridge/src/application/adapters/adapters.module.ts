@@ -6,6 +6,8 @@ import { TelegramAdapter } from './telegram.adapter';
 import { AdapterFactoryService } from './adapter-factory.service';
 import { MessageRouterService } from './message-router.service';
 import { WebhooksController } from '../../presentation/controllers/webhooks.controller';
+import { IAdapterFactoryService } from './interfaces/adapter-factory.interface';
+import { IMessageRouterService } from './interfaces/message-router.interface';
 
 /**
  * Adapters Module
@@ -18,12 +20,18 @@ import { WebhooksController } from '../../presentation/controllers/webhooks.cont
   providers: [
     BridgeLogger,
     TelegramAdapter,
-    AdapterFactoryService,
-    MessageRouterService,
+    {
+      provide: IAdapterFactoryService,
+      useClass: AdapterFactoryService,
+    },
+    {
+      provide: IMessageRouterService,
+      useClass: MessageRouterService,
+    },
   ],
   exports: [
-    AdapterFactoryService,
-    MessageRouterService,
+    IAdapterFactoryService,
+    IMessageRouterService,
     TelegramAdapter,
   ],
 })

@@ -10,26 +10,26 @@ import { Repository, ObjectLiteral } from 'typeorm';
  * - Coordinates writing out changes and resolving concurrency problems
  * - Provides atomic operations - all succeed or all fail
  */
-export interface IUnitOfWork {
+export abstract class IUnitOfWork {
   /**
    * Begin a new transaction
    */
-  beginTransaction(): Promise<void>;
+  abstract beginTransaction(): Promise<void>;
 
   /**
    * Commit the current transaction
    */
-  commitTransaction(): Promise<void>;
+  abstract commitTransaction(): Promise<void>;
 
   /**
    * Rollback the current transaction
    */
-  rollbackTransaction(): Promise<void>;
+  abstract rollbackTransaction(): Promise<void>;
 
   /**
    * Check if currently in a transaction
    */
-  isTransactionActive(): boolean;
+  abstract isTransactionActive(): boolean;
 
   /**
    * Execute callback within a transaction
@@ -41,16 +41,10 @@ export interface IUnitOfWork {
    *   await profileRepo.save(profile);
    * });
    */
-  withTransaction<T>(callback: () => Promise<T>): Promise<T>;
+  abstract withTransaction<T>(callback: () => Promise<T>): Promise<T>;
 
   /**
    * Get repository for an entity
    */
-  getRepository<Entity extends ObjectLiteral>(entity: new () => Entity): Repository<Entity>;
+  abstract getRepository<Entity extends ObjectLiteral>(entity: new () => Entity): Repository<Entity>;
 }
-
-/**
- * Token for dependency injection
- * Use this to inject the UnitOfWork service
- */
-export const IUnitOfWork = Symbol('IUnitOfWork');

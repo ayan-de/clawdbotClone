@@ -25,16 +25,22 @@ import { BridgeLogger } from '../../logger';
  * }
  */
 export abstract class BaseWebSocketGateway
-  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
-{
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   protected server!: Server;
 
-  protected readonly logger: Logger;
+  private _logger: Logger | null = null;
   protected clients = new Map<string, Socket>();
 
   constructor(protected readonly bridgeLogger: BridgeLogger) {
-    this.logger = new Logger(this.constructor.name);
+    this._logger = new Logger(this.constructor.name);
+  }
+
+  protected get logger(): Logger {
+    if (!this._logger) {
+      this._logger = new Logger(this.constructor.name);
+    }
+    return this._logger;
   }
 
   /**
@@ -42,6 +48,7 @@ export abstract class BaseWebSocketGateway
    */
   afterInit(): void {
     this.logger.log(`WebSocket Gateway initialized: ${this.constructor.name}`);
+    this.logger.debug(`Clients map initialized: ${!!this.clients}, size: ${this.clients?.size}`);
     this.setupHeartbeat();
   }
 
@@ -169,6 +176,11 @@ export abstract class BaseWebSocketGateway
    * Check heartbeat of all clients
    */
   private checkHeartbeat(): void {
+    if (!this.clients) {
+      this.logger.warn(`Clients map not initialized in checkHeartbeat. Keys on this: ${Object.keys(this)}`);
+      return;
+    }
+
     const now = Date.now();
     const STALE_TIMEOUT = 120000; // 2 minutes
 

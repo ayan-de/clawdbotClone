@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 30
+    },
+    "auditLog": "logs/.dfdcf1b70bb6371f637a5c4d8d4c4972661b1579-audit.json",
+    "files": [
+        {
+            "date": 1771102484721,
+            "name": "logs/OrbitBridge-error-2026-02-15.log",
+            "hash": "f46ce840b3dc6f2b7dff112cf01551d6d262f7771c38a73621ef3749a9c9f10f"
+        }
+    ],
+    "hashType": "sha256"
+}

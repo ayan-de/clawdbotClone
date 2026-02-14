@@ -25,7 +25,7 @@ export class DatabaseConfig {
       extra: {
         max: 20, // connection pool size
         idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
+        connectionTimeoutMillis: 10000,
       },
     };
   }
@@ -47,9 +47,23 @@ export class DatabaseConfig {
    * Supports both individual config fields and NEON_DATABASE_URL
    */
   private static getDatabaseUrl(configService: ConfigService): string {
-    // Check for Neon database URL first
+    // Check for standard DATABASE_URL
+    const dbUrl = configService.get<string>('DATABASE_URL');
+
+    if (dbUrl && dbUrl.length > 0) {
+      return dbUrl;
+    }
+
+    // Fallback to process.env (direct access)
+    const envDbUrl = process.env.DATABASE_URL;
+    if (envDbUrl && envDbUrl.length > 0) {
+      return envDbUrl;
+    }
+
+    // Check for Neon database URL
     const neonUrl = configService.get<string>('NEON_DATABASE_URL');
-    if (neonUrl) {
+    if (neonUrl && neonUrl.length > 0) {
+      console.log(`🔌 Using Neon Database URL: ${neonUrl.replace(/:[^:]*@/, ':****@')}`);
       return neonUrl;
     }
 
@@ -60,7 +74,9 @@ export class DatabaseConfig {
     const password = configService.get<string>('DB_PASSWORD', '');
     const database = configService.get<string>('DB_NAME', 'orbit_bridge');
 
-    return `postgresql://${username}:${password}@${host}:${port}/${database}`;
+    const url = `postgresql://${username}:${password}@${host}:${port}/${database}`;
+    console.log(`🔌 Database URL: ${url.replace(/:[^:]*@/, ':****@')}`);
+    return url;
   }
 
   /**
@@ -77,11 +93,10 @@ export class DatabaseConfig {
       return false;
     }
 
-    // For Neon, we need to allow unauthorized SSL in development
-    // but be strict in production
-    if (configService.get<string>('NEON_DATABASE_URL')) {
-      // Neon always requires SSL
-      return isProduction ? true : { rejectUnauthorized: false };
+    // For Neon, we need explicit SSL configuration
+    // Using rejectUnauthorized: false for development
+    if (configService.get<string>('NEON_DATABASE_URL') || configService.get<string>('DATABASE_URL')) {
+      return { rejectUnauthorized: false };
     }
 
     return true;

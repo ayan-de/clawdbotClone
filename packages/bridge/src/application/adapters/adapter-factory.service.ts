@@ -36,7 +36,7 @@ export class AdapterFactoryService implements IAdapterFactoryService {
   /**
    * Register a chat adapter
    */
-  private registerAdapter(platform: string, adapter: IChatAdapter): void {
+  registerAdapter(platform: string, adapter: IChatAdapter): void {
     this.adapters.set(platform, adapter);
 
     // Load configuration for this platform

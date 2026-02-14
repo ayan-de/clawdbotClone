@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { BridgeLogger } from '../../logger';
-import { AuthService } from '../../application/auth';
+import { AuthModule } from '../../application/auth';
 import { BridgeWebSocketGateway } from './bridge-websocket.gateway';
 import { DesktopGateway } from './desktop.gateway';
+import { IDesktopGateway } from './interfaces/desktop-gateway.interface';
 import { ConfigModule } from '../../config';
 import { SessionModule } from '../../application/session/session.module';
 
@@ -13,16 +14,16 @@ import { SessionModule } from '../../application/session/session.module';
  * Follows SOLID - Single Responsibility: Only handles WebSocket connections
  */
 @Module({
-  imports: [ConfigModule, EventEmitterModule, SessionModule],
+  imports: [ConfigModule, EventEmitterModule, SessionModule, AuthModule],
   providers: [
     BridgeLogger,
-    {
-      provide: AuthService,
-      useExisting: AuthService,
-    },
     BridgeWebSocketGateway,
-    DesktopGateway,
+    {
+      provide: IDesktopGateway,
+      useClass: DesktopGateway,
+    },
+    DesktopGateway, // Providing concrete class too for internal module consumption if needed (e.g. BridgeWebSocketGateway)
   ],
-  exports: [BridgeWebSocketGateway, DesktopGateway],
+  exports: [BridgeWebSocketGateway, IDesktopGateway],
 })
 export class WebSocketModule { }

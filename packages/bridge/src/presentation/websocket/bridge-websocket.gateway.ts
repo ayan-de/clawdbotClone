@@ -14,7 +14,7 @@ import { BridgeLogger } from '../../logger';
 import { BaseWebSocketGateway } from './base-websocket.gateway';
 import { GatewayAuth } from './decorators';
 import { User } from '../../application/domain/entities';
-import { SessionService } from '../../application/session/session.service';
+import { ISessionService } from '../../application/session/interfaces/session.service.interface';
 
 /**
  * Bridge WebSocket Gateway
@@ -39,7 +39,7 @@ export class BridgeWebSocketGateway
     bridgeLogger: BridgeLogger,
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
-    private readonly sessionService: SessionService,
+    private readonly sessionService: ISessionService,
   ) {
     super(bridgeLogger);
   }
@@ -167,11 +167,11 @@ export class BridgeWebSocketGateway
    * Handle heartbeat ping from client
    */
   @SubscribeMessage('ping')
-  handlePing(
+  override handlePing(
     @ConnectedSocket() client: Socket,
     @MessageBody() body: { timestamp?: number },
   ): void {
-    this.handlePing(client, body);
+    super.handlePing(client, body);
   }
 
   /**

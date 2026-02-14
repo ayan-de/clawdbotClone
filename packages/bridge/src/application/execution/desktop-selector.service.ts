@@ -34,7 +34,8 @@ export class DesktopSelectorService {
         // Verify desktop is still connected
         if (!desktopId || !this.isDesktopAlive(desktopId)) {
             // Find new desktop
-            desktopId = this.desktopGateway.getFirstAvailableDesktop();
+            const availableDesktop = this.desktopGateway.getFirstAvailableDesktop();
+            desktopId = availableDesktop !== null ? availableDesktop : undefined;
 
             if (desktopId) {
                 await this.sessionService.attachDesktop(sessionId, desktopId);

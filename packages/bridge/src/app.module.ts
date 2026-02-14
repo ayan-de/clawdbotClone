@@ -10,6 +10,7 @@ import { AdaptersModule } from './application/adapters';
 import { ExecutionModule } from './application/execution/execution.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './application/auth/guards';
+import { AppController } from './app.controller';
 
 /**
  * Root Application Module
@@ -40,7 +41,7 @@ import { JwtAuthGuard } from './application/auth/guards';
 
     // Domain Layer is shared via @orbit/common package
   ],
-  controllers: [],
+  controllers: [AppController],
   providers: [
     // Global JWT auth guard (applies to all routes unless @Public() is used)
     {

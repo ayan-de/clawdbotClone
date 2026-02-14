@@ -19,10 +19,18 @@ export class GoogleOAuthStrategy extends PassportStrategy(Strategy, 'google') im
   readonly provider = 'google';
 
   constructor(private readonly configService: ConfigService) {
+    const clientID = configService.get<string>('GOOGLE_CLIENT_ID', '');
+    const clientSecret = configService.get<string>('GOOGLE_CLIENT_SECRET', '');
+    const callbackURL = configService.get<string>('GOOGLE_REDIRECT_URI', '');
+
+    if (!clientID) {
+      console.warn('⚠️ GOOGLE_CLIENT_ID is missing! Google OAuth will not work.');
+    }
+
     super({
-      clientID: configService.get<string>('GOOGLE_CLIENT_ID', ''),
-      clientSecret: configService.get<string>('GOOGLE_CLIENT_SECRET', ''),
-      callbackURL: configService.get<string>('GOOGLE_REDIRECT_URI', ''),
+      clientID: clientID || 'missing_client_id', // Prevent crash on startup
+      clientSecret: clientSecret || 'missing_client_secret',
+      callbackURL: callbackURL || 'http://localhost:5000/auth/google/callback',
       scope: ['email', 'profile'],
     });
   }
