@@ -2,6 +2,9 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from './config';
 import { LoggerModule } from './logger';
 import { UnitOfWorkModule } from './infrastructure';
+import { AuthModule } from './application/auth';
+import { APP_GUARD } from '@nestjs/core';
+import { JwtAuthGuard } from './application/auth/guards';
 
 /**
  * Root Application Module
@@ -20,17 +23,22 @@ import { UnitOfWorkModule } from './infrastructure';
     LoggerModule,
     UnitOfWorkModule,
 
+    // Application Layer
+    AuthModule,
+
     // Presentation Layer (to be added)
     // ControllersModule,
     // WebSocketModule,
 
-    // Application Layer (to be added)
-    // UsersModule,
-    // AuthModule,
-
     // Domain Layer is shared via @orbit/common package
   ],
   controllers: [],
-  providers: [],
+  providers: [
+    // Global JWT auth guard (applies to all routes unless @Public() is used)
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+  ],
 })
 export class AppModule {}
