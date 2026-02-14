@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from './config';
 import { LoggerModule } from './logger';
+import { UnitOfWorkModule } from './infrastructure';
 
 /**
  * Root Application Module
@@ -17,6 +18,7 @@ import { LoggerModule } from './logger';
     // Infrastructure Layer
     ConfigModule,
     LoggerModule,
+    UnitOfWorkModule,
 
     // Presentation Layer (to be added)
     // ControllersModule,

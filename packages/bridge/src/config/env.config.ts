@@ -21,6 +21,10 @@ export class EnvConfig {
   // Database Config
   @IsString()
   @IsOptional()
+  NEON_DATABASE_URL: string = ''; // Neon database connection string
+
+  @IsString()
+  @IsOptional()
   DB_HOST: string = 'localhost';
 
   @IsPort()
@@ -42,6 +46,10 @@ export class EnvConfig {
   @IsBoolean()
   @IsOptional()
   DB_SYNCHRONIZE: boolean = false;
+
+  @IsBoolean()
+  @IsOptional()
+  DB_SSL: boolean = true; // SSL for database connection
 
 
   // JWT Config

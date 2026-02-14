@@ -1,0 +1,2 @@
+# Migrations will be generated here
+# Use: pnpm typeorm migration:generate -n MigrationName
