@@ -74,6 +74,15 @@ export class EnvConfig {
   @IsOptional()
   GOOGLE_REDIRECT_URI: string = '';
 
+  // Telegram Bot Config
+  @IsString()
+  @IsOptional()
+  TELEGRAM_BOT_TOKEN: string = '';
+
+  @IsString()
+  @IsOptional()
+  TELEGRAM_WEBHOOK_URL: string = '';
+
   // Logging Config
   @IsString()
   @IsOptional()

@@ -1,0 +1,6 @@
+export * from './chat-adapter.interface';
+export * from './base-adapter';
+export * from './telegram.adapter';
+export * from './adapter-factory.service';
+export * from './message-router.service';
+export * from './adapters.module';
