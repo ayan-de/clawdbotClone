@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { BridgeLogger } from '../../logger';
 import { AuthService } from '../../application/auth';
 import { BridgeWebSocketGateway } from './bridge-websocket.gateway';
+import { DesktopGateway } from './desktop.gateway';
 import { ConfigModule } from '../../config';
 
 /**
@@ -10,7 +12,7 @@ import { ConfigModule } from '../../config';
  * Follows SOLID - Single Responsibility: Only handles WebSocket connections
  */
 @Module({
-  imports: [ConfigModule],
+  imports: [ConfigModule, EventEmitterModule],
   providers: [
     BridgeLogger,
     {
@@ -18,7 +20,8 @@ import { ConfigModule } from '../../config';
       useExisting: AuthService,
     },
     BridgeWebSocketGateway,
+    DesktopGateway,
   ],
-  exports: [BridgeWebSocketGateway],
+  exports: [BridgeWebSocketGateway, DesktopGateway],
 })
-export class WebSocketModule {}
+export class WebSocketModule { }

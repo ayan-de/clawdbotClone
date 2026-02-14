@@ -6,6 +6,7 @@ import { AuthModule } from './application/auth';
 import { UsersModule } from './application/users';
 import { WebSocketModule } from './presentation/websocket';
 import { AdaptersModule } from './application/adapters';
+import { ExecutionModule } from './application/execution/execution.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './application/auth/guards';
 
@@ -29,6 +30,7 @@ import { JwtAuthGuard } from './application/auth/guards';
     // Application Layer
     AuthModule,
     UsersModule,
+    ExecutionModule,
 
     // Presentation Layer
     WebSocketModule,
@@ -45,4 +47,4 @@ import { JwtAuthGuard } from './application/auth/guards';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }
