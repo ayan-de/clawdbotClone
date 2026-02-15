@@ -1,6 +1,8 @@
 import { parseCliArgs, showHelp, showVersion, validateConfig, loadConfig, runSetupWizard } from './config';
 import { Logger, LogLevel } from './logger';
 import { ConnectionState } from './types';
+import { DesktopClient } from './client';
+import { CommandHandler } from './command-handler';
 
 /**
  * Orbit Desktop TUI - Main Entry Point
@@ -8,6 +10,11 @@ import { ConnectionState } from './types';
  */
 
 const logger = Logger.getInstance();
+
+// Global variables for graceful shutdown
+let desktopClient: DesktopClient | null = null;
+let commandHandler: CommandHandler | null = null;
+let isShuttingDown = false;
 
 /**
  * Main function
@@ -71,22 +78,32 @@ export async function main() {
     logger.info(`Connecting to Bridge Server at ${config.bridgeUrl}`);
     logger.debug(`Connection token: ${config.token.substring(0, 8)}...`);
 
-    // TODO: Phase 2 - Initialize Socket.io client
-    // TODO: Phase 2 - Initialize TUI (blessed)
-    // TODO: Phase 2 - Connect to Bridge Server
-    // TODO: Phase 2 - Wait for user input
+    // Initialize Command Handler
+    commandHandler = new CommandHandler(config.workspace);
+    logger.debug('Command handler initialized');
 
-    // For now, just show connection state
-    displayConnectionStatus(ConnectionState.CONNECTING);
+    // Initialize Desktop Client
+    desktopClient = new DesktopClient(config);
+    logger.debug('Desktop client initialized');
 
-    logger.info('✓ Desktop TUI initialized successfully');
-    logger.info('Note: Full functionality coming in Phase 2');
+    // Connect to Bridge Server
+    const connected = await desktopClient.connect();
+    if (!connected) {
+      logger.error('Failed to connect to Bridge Server');
+      process.exit(1);
+    }
 
-    // Wait a bit to show status, then exit
-    setTimeout(() => {
-      displayConnectionStatus(ConnectionState.DISCONNECTED);
-      process.exit(0);
-    }, 3000);
+    logger.info('✓ Connected to Bridge Server');
+    logger.info(`✓ Desktop Name: ${config.desktopName || 'Not specified'}`);
+    logger.info('✓ Ready to receive commands from Telegram');
+    logger.info('');
+    logger.info('---');
+    logger.info('Orbit Desktop TUI is running.');
+    logger.info('Press Ctrl+C to stop.');
+    logger.info('---');
+
+    // Keep process alive
+    await new Promise(() => {});
 
   } catch (error: any) {
     logger.error(`Failed to start Orbit Desktop TUI: ${error.message}`);
@@ -95,6 +112,71 @@ export async function main() {
     }
     process.exit(1);
   }
+}
+
+/**
+ * Graceful shutdown handler
+ */
+async function gracefulShutdown(signal: string): Promise<void> {
+  if (isShuttingDown) {
+    return; // Already shutting down
+  }
+
+  isShuttingDown = true;
+  logger.info(`\nReceived ${signal}, shutting down gracefully...`);
+
+  // Disconnect from Bridge Server
+  if (desktopClient) {
+    logger.info('Disconnecting from Bridge Server...');
+    desktopClient.disconnect();
+  }
+
+  // Cleanup command handler (kill running processes)
+  if (commandHandler) {
+    const killedCount = commandHandler.killAllProcesses(signal);
+    if (killedCount > 0) {
+      logger.info(`Killed ${killedCount} active processes`);
+    }
+  }
+
+  // Cleanup logger
+  logger.info('Cleanup complete');
+  logger.info('Goodbye!');
+
+  // Exit with success
+  process.exit(0);
+}
+
+/**
+ * Setup signal handlers for graceful shutdown
+ */
+function setupSignalHandlers(): void {
+  // Handle SIGINT (Ctrl+C)
+  process.on('SIGINT', async () => {
+    logger.info('\nSIGINT received');
+    await gracefulShutdown('SIGINT');
+  });
+
+  // Handle SIGTERM
+  process.on('SIGTERM', async () => {
+    logger.info('SIGTERM received');
+    await gracefulShutdown('SIGTERM');
+  });
+
+  // Handle uncaught exceptions
+  process.on('uncaughtException', (error: Error) => {
+    logger.error(`Uncaught exception: ${error.message}`);
+    logger.error(error.stack || 'No stack trace');
+    process.exit(1);
+  });
+
+  // Handle unhandled promise rejections
+  process.on('unhandledRejection', (reason: any) => {
+    logger.error(`Unhandled promise rejection: ${reason}`);
+    process.exit(1);
+  });
+
+  logger.debug('Signal handlers registered');
 }
 
 /**
@@ -113,8 +195,29 @@ function displayConnectionStatus(state: ConnectionState): void {
 }
 
 /**
- * Run main if this is the entry point
+ * Display system info
+ */
+function displaySystemInfo(): void {
+  const os = require('os');
+  const process = require('process');
+
+  logger.info('');
+  logger.info('=== System Information ===');
+  logger.info(`Platform:    ${os.platform()}`);
+  logger.info(`OS Version:  ${os.release()}`);
+  logger.info(`Architecture: ${os.arch()}`);
+  logger.info(`Hostname:    ${os.hostname()}`);
+  logger.info(`Shell:       ${process.env.SHELL || 'unknown'}`);
+  logger.info(`Node.js:     ${process.version}`);
+  logger.info(`Workspace:    ${commandHandler?.getWorkingDir() || 'N/A'}`);
+  logger.info('===========================');
+  logger.info('');
+}
+
+/**
+ * Run main if this is entry point
  */
 if (import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}`) {
+  setupSignalHandlers();
   main();
 }
