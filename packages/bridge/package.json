@@ -4,10 +4,13 @@
   "scripts": {
     "dev": "nest start --watch",
     "build": "nest build",
+    "start": "node dist/main",
+    "start:prod": "node dist/main",
     "test": "jest",
     "lint": "eslint",
     "clean": "rm -rf dist",
     "typeorm": "typeorm-ts-node-commonjs",
+    "migration:up": "pnpm migration:run",
     "migration:generate": "pnpm typeorm migration:generate -d src/infrastructure/database/datasource.ts",
     "migration:run": "pnpm typeorm migration:run -d src/infrastructure/database/datasource.ts",
     "migration:revert": "pnpm typeorm migration:revert -d src/infrastructure/database/datasource.ts"

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 
 import OrbitSystem from "./components/OrbitSystem";
+import { API_URL } from "./config";
 
 export default function Home() {
   const [copied, setCopied] = useState(false);
@@ -67,7 +68,7 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-4">
             <a
-              href="http://localhost:5000/auth/google"
+              href={`${API_URL}/auth/google`}
               className="text-xs border border-white/20 px-4 py-2 hover:bg-white hover:text-black transition-all uppercase tracking-tighter cursor-pointer"
             >
               Login::Google

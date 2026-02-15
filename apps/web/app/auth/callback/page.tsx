@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import OrbitSystem from "../../components/OrbitSystem";
+import { API_URL } from "../../config";
 
 type ApiResponse = {
   id: string;
@@ -25,19 +26,7 @@ type DesktopTokenResponse = {
   connectCommand: string;
 };
 
-type ApiResponse = {
-  id: string;
-  email: string;
-  firstName?: string;
-  lastName?: string;
-  displayName?: string;
-  picture?: string;
-  telegramUsername?: string;
-  telegramId?: number;
-  selectedAiProvider?: "openai" | "claude" | "ollama";
-};
-
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
@@ -76,7 +65,7 @@ export default function AuthCallbackPage() {
 
   const fetchUserData = async (authToken: string) => {
     try {
-      const response = await fetch("http://localhost:5000/users/me", {
+      const response = await fetch(`${API_URL}/users/me`, {
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
@@ -112,7 +101,7 @@ export default function AuthCallbackPage() {
     setError("");
 
     try {
-      const response = await fetch("http://localhost:5000/desktop/tokens", {
+      const response = await fetch(`${API_URL}/desktop/tokens`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -197,58 +186,69 @@ export default function AuthCallbackPage() {
 
       <main className="relative z-20 flex flex-col items-center justify-center px-4 py-20 max-w-2xl mx-auto min-h-[80vh]">
         {loading ? (
-          <div className="text-white">Loading...</div>
+          <div className="text-white font-mono text-sm tracking-widest animate-pulse">
+            [ INITIALIZING_SESSION... ]
+          </div>
         ) : error ? (
-          <div className="border-2 border-red-500/30 bg-black/90 p-8 text-center">
-            <p className="text-red-400 mb-4">{error}</p>
+          <div className="border-2 border-red-500/30 bg-black/90 p-8 text-center backdrop-blur-xl relative">
+            <div className="absolute top-0 left-0 w-full h-1 bg-red-500/50"></div>
+            <p className="text-red-400 mb-6 font-mono text-sm uppercase tracking-tighter">{error}</p>
             <button
               onClick={() => router.push("/")}
-              className="text-xs border border-white/20 px-4 py-2 hover:bg-white hover:text-black transition-all uppercase tracking-tighter"
+              className="text-xs border border-white/20 px-6 py-3 hover:bg-white hover:text-black transition-all uppercase tracking-widest font-bold"
             >
-              Back to Home
+              Return::Home
             </button>
           </div>
         ) : user ? (
           <div className="w-full space-y-6">
             {/* User Profile Card */}
             <div className="w-full border-2 border-white/10 bg-black/90 p-6 relative shadow-[0_0_50px_rgba(255,255,255,0.1)] backdrop-blur-xl">
-              <div className="bg-white/10 px-4 py-2 text-[10px] uppercase tracking-widest mb-4">
-                User Profile
+              <div className="bg-white/10 px-4 py-2 text-[10px] uppercase tracking-widest mb-4 flex justify-between">
+                <span>User Profile</span>
+                <span className="text-white/40">Status: Online</span>
               </div>
 
-              <div className="flex items-center gap-4 mb-6">
+              <div className="flex items-center gap-6 mb-6">
                 {user.picture && (
                   <img
                     src={user.picture}
                     alt={user.displayName || user.email}
-                    className="w-16 h-16 rounded-full border-2 border-white/20"
+                    className="w-20 h-20 rounded-none border-2 border-white/20 p-1"
                     referrerPolicy="no-referrer"
                   />
                 )}
                 <div>
-                  <h2 className="text-lg font-bold text-white">
+                  <h2 className="text-xl font-bold text-white tracking-tighter uppercase">
                     {user.displayName ||
                       `${user.firstName} ${user.lastName}`.trim() ||
                       user.email}
                   </h2>
-                  <p className="text-xs text-white/60">{user.email}</p>
+                  <p className="text-xs text-white/40 font-mono mt-1 italic">{user.email}</p>
+                  <p className="text-[10px] text-white/20 mt-2 uppercase tracking-widest">ID: {user.id.substring(0, 8)}...</p>
                 </div>
               </div>
 
               {/* Telegram Status */}
-              <div className="border border-white/20 p-4 bg-white/5">
-                <p className="text-xs uppercase tracking-widest text-white/60 mb-2">
-                  Telegram Connection
+              <div className="border border-white/20 p-4 bg-white/5 relative group">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 mb-3">
+                  Protocol::Messaging
                 </p>
                 {user.telegramUsername ? (
-                  <div className="flex items-center gap-2 text-green-400">
-                    <span className="text-xl">●</span>
-                    <span className="text-sm">@{user.telegramUsername}</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 text-white">
+                      <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)] animate-pulse"></div>
+                      <span className="text-sm font-bold tracking-tight">@{user.telegramUsername}</span>
+                    </div>
+                    <span className="text-[10px] text-green-500/50 uppercase tracking-widest">Linked</span>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 text-yellow-400">
-                    <span className="text-xl">○</span>
-                    <span className="text-sm">Not connected</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 text-white/40">
+                      <div className="w-2 h-2 rounded-full bg-yellow-500/50"></div>
+                      <span className="text-sm">Not synchronized</span>
+                    </div>
+                    <span className="text-[10px] text-yellow-500/50 uppercase tracking-widest">Idle</span>
                   </div>
                 )}
               </div>
@@ -262,9 +262,9 @@ export default function AuthCallbackPage() {
             {!user.telegramUsername && (
               <button
                 onClick={handleSignup}
-                className="w-full px-6 py-3 bg-white text-black text-xs font-bold uppercase tracking-widest hover:bg-white/80 transition-all active:scale-95"
+                className="w-full px-6 py-4 bg-white text-black text-xs font-bold uppercase tracking-[0.2em] hover:bg-white/80 transition-all active:scale-[0.98] shadow-[0_0_20px_rgba(255,255,255,0.1)]"
               >
-                Connect Telegram
+                Sync::Telegram
               </button>
             )}
 
@@ -272,35 +272,35 @@ export default function AuthCallbackPage() {
               <button
                 onClick={generateDesktopToken}
                 disabled={generatingToken}
-                className="w-full px-6 py-3 bg-white text-black text-xs font-bold uppercase tracking-widest hover:bg-white/80 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-6 py-4 bg-white text-black text-xs font-bold uppercase tracking-[0.2em] hover:bg-white/80 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(255,255,255,0.1)]"
               >
-                {generatingToken ? "Generating Token..." : "Connect Desktop"}
+                {generatingToken ? "[ GENERATING_KEY... ]" : "Authorize::Desktop"}
               </button>
             )}
 
             {/* Instructions Card */}
             <div className="w-full border-2 border-white/10 bg-black/90 p-6 relative shadow-[0_0_50px_rgba(255,255,255,0.1)] backdrop-blur-xl">
               <div className="bg-white/10 px-4 py-2 text-[10px] uppercase tracking-widest mb-4">
-                How to Use Orbit
+                Operational Guide
               </div>
 
-              <div className="space-y-3 text-xs text-white/80">
-                <p className="flex items-start gap-2">
-                  <span className="text-white font-bold">1.</span>
-                  <span>Connect your Telegram account above</span>
-                </p>
-                <p className="flex items-start gap-2">
-                  <span className="text-white font-bold">2.</span>
-                  <span>Start the Orbit TUI client on your desktop</span>
-                </p>
-                <p className="flex items-start gap-2">
-                  <span className="text-white font-bold">3.</span>
-                  <span>Send commands to the Telegram bot</span>
-                </p>
-                <p className="flex items-start gap-2">
-                  <span className="text-white font-bold">4.</span>
-                  <span>Commands will execute on your connected desktop</span>
-                </p>
+              <div className="space-y-4 text-xs text-white/60 leading-relaxed font-mono">
+                <div className="flex items-start gap-3">
+                  <span className="text-white font-bold">[01]</span>
+                  <p>Link your <span className="text-white uppercase">Telegram Account</span> using the button above.</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="text-white font-bold">[02]</span>
+                  <p>Initialize the <span className="text-white uppercase">Orbit TUI</span> on your target machine.</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="text-white font-bold">[03]</span>
+                  <p>Transmit <span className="text-white uppercase">Commands</span> via the Telegram Bot terminal.</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="text-white font-bold">[04]</span>
+                  <p>Monitor <span className="text-white uppercase">Execution</span> in real-time on your remote node.</p>
+                </div>
               </div>
 
               {/* Footer Decoration */}
@@ -312,59 +312,62 @@ export default function AuthCallbackPage() {
 
         {/* Desktop Token Modal */}
         {showTokenModal && desktopToken && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center px-4">
-            <div className="w-full max-w-2xl border-2 border-white/20 bg-black/95 p-6 relative shadow-[0_0_100px_rgba(255,255,255,0.2)]">
+          <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center px-4">
+            <div className="w-full max-w-2xl border-2 border-white/20 bg-black/95 p-8 relative shadow-[0_0_100px_rgba(255,255,255,0.2)]">
               {/* Header */}
-              <div className="bg-white/10 px-4 py-2 flex items-center justify-between text-[10px] uppercase tracking-widest mb-4">
-                <span>Desktop Connection Token</span>
+              <div className="bg-white/10 px-4 py-2 flex items-center justify-between text-[10px] uppercase tracking-widest mb-8">
+                <span>Secure Connection Port</span>
                 <button
                   onClick={() => setShowTokenModal(false)}
-                  className="text-white/60 hover:text-white transition-colors"
+                  className="text-white/40 hover:text-white transition-colors text-lg"
                 >
                   ×
                 </button>
               </div>
 
               {/* Token Display */}
-              <div className="space-y-6">
+              <div className="space-y-8">
                 {/* Token */}
-                <div className="border border-white/20 p-4 bg-white/5">
-                  <p className="text-xs uppercase tracking-widest text-white/60 mb-2">
-                    Connection Token
+                <div className="border border-white/20 p-6 bg-white/5 relative">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 mb-4">
+                    Access_Key
                   </p>
-                  <div className="bg-black/60 p-4 border border-white/20 font-mono text-sm text-green-400 break-all">
+                  <div className="font-mono text-sm text-green-400 break-all p-4 bg-black/40 border-l-2 border-green-500/50">
                     {desktopToken.token}
                   </div>
+                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 animate-pulse"></div>
                 </div>
 
                 {/* Expiration */}
-                <div className="flex items-center justify-between text-xs text-white/60">
-                  <span>Expires at:</span>
-                  <span className="text-yellow-400">{formatExpirationTime(desktopToken.expiresAt)}</span>
+                <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-white/40 font-mono">
+                  <span>TTL_EXPIRY:</span>
+                  <span className="text-yellow-500/80">{formatExpirationTime(desktopToken.expiresAt)}</span>
                 </div>
 
                 {/* Instructions */}
-                <div className="text-xs text-white/80">
-                  <p className="mb-2">{desktopToken.instructions}</p>
+                <div className="text-xs text-white/60 font-mono leading-relaxed border-l border-white/20 pl-4 py-2 italic text-[11px]">
+                  <p>{desktopToken.instructions}</p>
                 </div>
 
                 {/* Connect Command */}
-                <div className="border border-white/20 p-4 bg-black/80">
-                  <p className="text-xs uppercase tracking-widest text-white/60 mb-2">
-                    Connect Command
+                <div className="border border-white/20 p-6 bg-black">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 mb-4">
+                    TUI_START_COMMAND
                   </p>
-                  <code className="text-sm text-white block break-all">
-                    <span className="text-cyan-400">$</span>
-                    <span className="ml-2">{desktopToken.connectCommand}</span>
-                  </code>
+                  <div className="flex items-center gap-3">
+                    <span className="text-white animate-pulse">❯</span>
+                    <code className="text-xs text-white block break-all font-mono leading-loose">
+                      {desktopToken.connectCommand}
+                    </code>
+                  </div>
                 </div>
 
                 {/* Copy Button */}
                 <button
                   onClick={handleCopyToken}
-                  className="w-full px-6 py-3 bg-white text-black text-xs font-bold uppercase tracking-widest hover:bg-white/80 transition-all active:scale-95"
+                  className="w-full px-6 py-4 bg-white text-black text-xs font-bold uppercase tracking-[0.3em] hover:bg-white/80 transition-all active:scale-[0.98]"
                 >
-                  Copy & Close
+                  Capture::Copy
                 </button>
               </div>
 
@@ -376,5 +379,17 @@ export default function AuthCallbackPage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-black flex items-center justify-center font-mono text-white/40 text-[10px] uppercase tracking-[0.5em] animate-pulse">
+        [ LOADING_ORBIT_SYSTEM... ]
+      </div>
+    }>
+      <AuthCallbackContent />
+    </Suspense>
   );
 }

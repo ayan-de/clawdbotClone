@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import OrbitSystem from "../components/OrbitSystem";
+import { API_URL } from "../config";
 
 type ApiResponse = {
   id: string;
@@ -14,7 +15,7 @@ type ApiResponse = {
   selectedAiProvider?: "openai" | "claude" | "ollama";
 };
 
-export default function SignupPage() {
+function SignupContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
@@ -49,7 +50,7 @@ export default function SignupPage() {
     setError("");
 
     try {
-      const response = await fetch("http://localhost:5000/users/me", {
+      const response = await fetch(`${API_URL}/users/me`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -209,5 +210,17 @@ export default function SignupPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-black flex items-center justify-center font-mono text-white/40 text-[10px] uppercase tracking-[0.5em] animate-pulse">
+        [ LOADING_SETUP_SYSTEM... ]
+      </div>
+    }>
+      <SignupContent />
+    </Suspense>
   );
 }
