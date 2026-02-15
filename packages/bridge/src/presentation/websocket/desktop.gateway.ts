@@ -6,10 +6,12 @@ import {
   OnGatewayDisconnect,
   OnGatewayInit,
 } from '@nestjs/websockets';
-import { Logger, Inject } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
+import { DataSource } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { BridgeLogger } from '../../logger';
-import { DesktopTokensService } from '../../application/desktop-tokens/desktop-tokens.service';
+import { DesktopConnectionToken } from '../../application/domain/entities/desktop-connection-token.entity';
 import { ISessionService } from '../../application/session/interfaces/session.service.interface';
 import { BaseWebSocketGateway } from './base-websocket.gateway';
 
@@ -20,6 +22,9 @@ import { BaseWebSocketGateway } from './base-websocket.gateway';
  *
  * Architecture:
  * Desktop TUI → DesktopGateway (WebSocket) → MessageRouterService → Telegram
+ *
+ * NOTE: Services are resolved via ModuleRef/DataSource because NestJS gateway
+ * constructor DI is unreliable when extending a base class.
  */
 @WebSocketGateway({
   namespace: 'desktop',
@@ -35,29 +40,31 @@ export class DesktopGateway extends BaseWebSocketGateway implements OnGatewayIni
   // Map: userId → array of session IDs (for that user)
   private userSessions = new Map<string, string[]>();
 
+  // Resolved lazily — gateway constructor DI is unreliable
+  private dataSource!: DataSource;
+  private sessionService!: ISessionService;
+  private eventEmitter!: EventEmitter2;
+
   constructor(
-    @Inject(DesktopTokensService)
-    private readonly desktopTokensService: DesktopTokensService,
-    @Inject(ISessionService)
-    private readonly sessionService: ISessionService,
-    @Inject(BridgeLogger)
     bridgeLogger: BridgeLogger,
-    @Inject(EventEmitter2)
-    private readonly eventEmitter: EventEmitter2,
+    private readonly moduleRef: ModuleRef,
   ) {
     super(bridgeLogger);
-    // Verify DI worked
-    if (!this.desktopTokensService) {
-      console.error('WARNING: desktopTokensService is undefined after DI!');
-    }
   }
 
   /**
-   * Gateway initialization
+   * Gateway initialization — resolve services via ModuleRef
    */
   afterInit(): void {
     super.afterInit();
+
+    // Resolve services via ModuleRef — DataSource is @Global() and always available
+    this.dataSource = this.moduleRef.get(DataSource, { strict: false });
+    this.sessionService = this.moduleRef.get(ISessionService, { strict: false });
+    this.eventEmitter = this.moduleRef.get(EventEmitter2, { strict: false });
+
     this.logger.log(`Desktop Gateway initialized with namespace: /desktop`);
+    this.logger.log(`Services resolved — dataSource: ${!!this.dataSource}, session: ${!!this.sessionService}, events: ${!!this.eventEmitter}`);
   }
 
   /**
@@ -85,7 +92,14 @@ export class DesktopGateway extends BaseWebSocketGateway implements OnGatewayIni
       clearTimeout(authTimeout);
       this.logger.log(`Authentication message received from ${socketId}`);
 
-      await this.handleAuthentication(client, data);
+      try {
+        await this.handleAuthentication(client, data);
+      } catch (error: any) {
+        this.logger.error(`Authentication failed for ${socketId}: ${error.message}`);
+        this.logger.error(`Stack: ${error.stack}`);
+        client.emit('auth_error', { error: error.message || 'Authentication failed' });
+        client.disconnect(true);
+      }
     });
 
     client.on('command_output', async (data: any) => {
@@ -113,8 +127,54 @@ export class DesktopGateway extends BaseWebSocketGateway implements OnGatewayIni
   }
 
   /**
-   * Handle authentication from Desktop TUI
-   * Validates Desktop Connection Token and links to user session
+   * Validate a desktop connection token directly using DataSource
+   * Bypasses DesktopTokensService because ModuleRef fails to resolve its dependencies
+   */
+  private async validateTokenDirect(token: string): Promise<{
+    valid: boolean;
+    userId?: string;
+    desktopName?: string;
+    error?: string;
+  }> {
+    const repo = this.dataSource.getRepository(DesktopConnectionToken);
+
+    const tokenEntity = await repo.findOne({
+      where: { token },
+      relations: ['user'],
+    });
+
+    if (!tokenEntity) {
+      this.logger.warn(`Invalid desktop connection token attempted: ${token}`);
+      return { valid: false, error: 'Invalid connection token' };
+    }
+
+    if (tokenEntity.expiresAt < new Date()) {
+      this.logger.warn(`Expired desktop connection token: ${token}`);
+      return { valid: false, error: 'Connection token has expired. Please generate a new one.' };
+    }
+
+    if (tokenEntity.used) {
+      this.logger.warn(`Already used desktop connection token: ${token}`);
+      return { valid: false, error: 'Connection token has already been used. Please generate a new one.' };
+    }
+
+    // Mark token as used
+    await repo.update(tokenEntity.id, {
+      used: true,
+      usedAt: new Date(),
+    });
+
+    this.logger.log(`Desktop connection token validated for user ${tokenEntity.userId}`);
+
+    return {
+      valid: true,
+      userId: tokenEntity.userId,
+      desktopName: tokenEntity.desktopName,
+    };
+  }
+
+  /**
+   * Handle desktop authentication
    */
   private async handleAuthentication(client: any, data: any): Promise<void> {
     const { token, desktopName, capabilities } = data || {};
@@ -122,8 +182,8 @@ export class DesktopGateway extends BaseWebSocketGateway implements OnGatewayIni
 
     this.logger.log(`Authenticating desktop: ${socketId}, desktop: ${desktopName}`);
 
-    // Validate token using DesktopTokensService
-    const validation = await this.desktopTokensService.validateToken(token);
+    // Validate token directly via DataSource (reliable, bypasses broken ModuleRef chain)
+    const validation = await this.validateTokenDirect(token);
 
     if (!validation.valid || !validation.userId) {
       this.logger.error(`Desktop authentication failed: ${validation.error}`);
@@ -157,115 +217,73 @@ export class DesktopGateway extends BaseWebSocketGateway implements OnGatewayIni
       userId,
     });
 
+    // Emit desktop.connected event so MessageRouter can notify Telegram
+    this.eventEmitter.emit('desktop.connected', {
+      userId,
+      sessionId: session.id,
+      desktopName: desktopName || capabilities?.hostname || 'Unknown',
+    });
+
     this.logger.log(`Desktop linked to session: ${session.id}, socket: ${socketId}`);
   }
 
   /**
-   * Handle command output from Desktop TUI
-   * Streams output back to Telegram (via MessageRouterService)
+   * Handle command output from desktop
    */
   private async handleCommandOutput(client: any, data: any): Promise<void> {
     const { sessionId, requestId, output } = data || {};
-    const socketId = client.id;
+    const userId = client.data?.userId;
 
-    if (!sessionId) {
-      this.logger.warn(`Command output without sessionId: ${socketId}`);
-      return;
-    }
+    if (!userId || !output) return;
 
-    this.logger.debug(`Received output from desktop ${socketId}: ${output?.substring(0, 50)}...`);
+    this.logger.debug(`Command output from ${client.id}: ${output?.substring(0, 80)}`);
 
-    // Find the session
-    const session = await this.sessionService.getSession(sessionId);
-
-    if (!session) {
-      this.logger.warn(`Session not found: ${sessionId}`);
-      return;
-    }
-
-    // Emit event for MessageRouterService
+    // Emit event for MessageRouter to route to Telegram
     this.eventEmitter.emit('desktop.output', {
-      sessionId,
-      userId: session.userId,
-      requestId,
-      output,
-      timestamp: Date.now(),
-    });
-
-    // Emit to session room (optional, for other observers)
-    this.server.to(`session_${sessionId}`).emit('desktop_output', {
+      userId,
       sessionId,
       requestId,
       output,
-      timestamp: Date.now(),
     });
-
-    this.logger.debug(`Output forwarded to session: ${sessionId}`);
   }
 
   /**
-   * Handle command completion from Desktop TUI
+   * Handle command completion from desktop
    */
   private async handleCommandComplete(client: any, data: any): Promise<void> {
     const { sessionId, requestId, result } = data || {};
+    const userId = client.data?.userId;
 
-    if (!sessionId) {
-      this.logger.warn(`Command complete without sessionId: ${client.id}`);
-      return;
-    }
+    if (!userId) return;
 
-    this.logger.debug(`Command completed: ${result?.command}, success: ${result?.success}`);
+    this.logger.debug(`Command complete from ${client.id}: ${requestId}`);
 
-    const session = await this.sessionService.getSession(sessionId);
-
-    // Emit event for MessageRouterService
+    // Emit event for MessageRouter to route to Telegram
     this.eventEmitter.emit('desktop.complete', {
-      sessionId,
-      userId: session?.userId,
-      requestId,
-      result,
-      timestamp: Date.now(),
-    });
-
-    // Broadcast completion to session room
-    this.server.to(`session_${sessionId}`).emit('desktop_complete', {
+      userId,
       sessionId,
       requestId,
       result,
-      timestamp: Date.now(),
     });
   }
 
   /**
-   * Handle command error from Desktop TUI
+   * Handle command error from desktop
    */
   private async handleCommandError(client: any, data: any): Promise<void> {
     const { sessionId, requestId, error } = data || {};
+    const userId = client.data?.userId;
 
-    if (!sessionId) {
-      this.logger.warn(`Command error without sessionId: ${client.id}`);
-      return;
-    }
+    if (!userId) return;
 
-    this.logger.error(`Command error: ${error}`);
+    this.logger.error(`Command error from ${client.id}: ${error}`);
 
-    const session = await this.sessionService.getSession(sessionId);
-
-    // Emit event for MessageRouterService
+    // Emit event for MessageRouter to route to Telegram
     this.eventEmitter.emit('desktop.error', {
-      sessionId,
-      userId: session?.userId,
-      requestId,
-      error,
-      timestamp: Date.now(),
-    });
-
-    // Broadcast error to session room
-    this.server.to(`session_${sessionId}`).emit('desktop_error', {
+      userId,
       sessionId,
       requestId,
       error,
-      timestamp: Date.now(),
     });
   }
 
@@ -366,11 +384,11 @@ export class DesktopGateway extends BaseWebSocketGateway implements OnGatewayIni
     const sessionIds = this.userSessions.get(userId) || [];
 
     for (const sessionId of sessionIds) {
-      const session = await this.sessionService.getSession(sessionId);
-      if (session && session.desktopId) {
-        const socket = this.clients.get(session.desktopId);
-        if (socket) {
-          socket.disconnect(true);
+      const socketId = this.sessionToSocket.get(sessionId);
+      if (socketId) {
+        const client = this.clients.get(socketId);
+        if (client) {
+          client.disconnect(true);
         }
       }
     }

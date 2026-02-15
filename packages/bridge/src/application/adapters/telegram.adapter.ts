@@ -83,6 +83,19 @@ export class TelegramAdapter extends BaseChatAdapter {
   private async handleIncomingMessage(msg: TelegramBot.Message): Promise<void> {
     if (!msg.text) return; // Ignore non-text messages for now
 
+    // Auto-save telegram chat ID for the user (needed for sending messages back)
+    if (msg.from?.username) {
+      try {
+        const user = await this.findUserByTelegram(msg.from.username);
+        if (user && !user.telegramId) {
+          await this.usersService.update(user.id, { telegramId: msg.chat.id });
+          this.logger.log(`Saved telegramId ${msg.chat.id} for user ${user.id} (@${msg.from.username})`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`Failed to auto-save telegramId: ${err.message}`);
+      }
+    }
+
     // Check if message is a command
     if (msg.text.startsWith('/')) {
       await this.handleCommand(msg);

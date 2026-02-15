@@ -1,95 +1,58 @@
-import { Injectable, Scope } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { DataSource, Repository, ObjectLiteral, QueryRunner } from 'typeorm';
+import { AsyncLocalStorage } from 'async_hooks';
 import { IUnitOfWork } from './unit-of-work.interface';
 
 /**
  * Unit of Work Service
  * Implements transaction management using Unit of Work pattern
- * Follows SOLID - Single Responsibility: Only handles transactions
- *
- * @Injectable({ scope: Scope.REQUEST }) creates a new instance per request
- * This ensures transactions are isolated per request
- *
- * @example
- * @Injectable({ scope: Scope.REQUEST })
- * export class UsersService {
- *   constructor(private readonly unitOfWork: UnitOfWork) {}
- *
- *   async createUserWithProfile(userDto: CreateUserDto) {
- *     return this.unitOfWork.withTransaction(async () => {
- *       const user = await this.userRepository.create(userDto);
- *       const profile = await this.profileRepository.create({ user });
- *       return { user, profile };
- *     });
- *   }
- * }
+ * Refactored to use AsyncLocalStorage for transaction context propagation
+ * Now supports Singleton scope (safe for WebSockets/Events)
  */
-@Injectable({ scope: Scope.REQUEST })
+@Injectable()
 export class UnitOfWork implements IUnitOfWork {
-  private readonly repositories = new Map<Function, Repository<any>>();
-  private transactionActive = false;
-  private queryRunner: QueryRunner | null = null;
+  private readonly logger = new Logger(UnitOfWork.name);
+  private readonly asyncLocalStorage = new AsyncLocalStorage<QueryRunner>();
 
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(private readonly dataSource: DataSource) { }
 
-  private getOrCreateQueryRunner(): QueryRunner {
-    if (!this.queryRunner) {
-      this.queryRunner = this.dataSource.createQueryRunner();
-      this.queryRunner.connect();
-    }
-    return this.queryRunner;
+  /**
+   * Get the current transaction query runner from AsyncLocalStorage
+   */
+  private getQueryRunner(): QueryRunner | undefined {
+    return this.asyncLocalStorage.getStore();
   }
 
   /**
    * Begin a new transaction
+   * @deprecated Use withTransaction() instead for safe context management
    */
   async beginTransaction(): Promise<void> {
-    if (this.transactionActive) {
-      throw new Error('Transaction already active');
-    }
-
-    const queryRunner = this.getOrCreateQueryRunner();
-    await queryRunner.startTransaction();
-    this.transactionActive = true;
+    throw new Error('Manual transaction management is not supported in Singleton UnitOfWork. Use withTransaction() instead.');
   }
 
   /**
    * Commit the current transaction
+   * @deprecated Use withTransaction() instead for safe context management
    */
   async commitTransaction(): Promise<void> {
-    if (!this.transactionActive) {
-      throw new Error('No active transaction to commit');
-    }
-
-    if (this.queryRunner?.isTransactionActive) {
-      await this.queryRunner.commitTransaction();
-    }
-
-    await this.releaseQueryRunner();
-    this.transactionActive = false;
+    throw new Error('Manual transaction management is not supported in Singleton UnitOfWork. Use withTransaction() instead.');
   }
 
   /**
    * Rollback the current transaction
+   * @deprecated Use withTransaction() instead for safe context management
    */
   async rollbackTransaction(): Promise<void> {
-    if (!this.transactionActive) {
-      throw new Error('No active transaction to rollback');
-    }
-
-    if (this.queryRunner?.isTransactionActive) {
-      await this.queryRunner.rollbackTransaction();
-    }
-
-    await this.releaseQueryRunner();
-    this.transactionActive = false;
+    throw new Error('Manual transaction management is not supported in Singleton UnitOfWork. Use withTransaction() instead.');
   }
 
   /**
    * Check if currently in a transaction
    */
   isTransactionActive(): boolean {
-    return this.transactionActive;
+    const queryRunner = this.getQueryRunner();
+    return !!queryRunner && queryRunner.isTransactionActive;
   }
 
   /**
@@ -97,60 +60,46 @@ export class UnitOfWork implements IUnitOfWork {
    * Automatically commits on success, rolls back on error
    */
   async withTransaction<T>(callback: () => Promise<T>): Promise<T> {
-    try {
-      await this.beginTransaction();
-      const result = await callback();
-      await this.commitTransaction();
-      return result;
-    } catch (error) {
-      if (this.transactionActive) {
-        await this.rollbackTransaction();
-      }
-      throw error;
+    // If already in transaction, reuse it (nested transaction support could be added here if needed)
+    // For now, we reuse the existing transaction context if present
+    const existingRunner = this.getQueryRunner();
+    if (existingRunner && existingRunner.isTransactionActive) {
+      return callback();
     }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    return this.asyncLocalStorage.run(queryRunner, async () => {
+      try {
+        const result = await callback();
+        await queryRunner.commitTransaction();
+        return result;
+      } catch (error) {
+        if (queryRunner.isTransactionActive) {
+          await queryRunner.rollbackTransaction();
+        }
+        throw error;
+      } finally {
+        if (!queryRunner.isReleased) {
+          await queryRunner.release();
+        }
+      }
+    });
   }
 
   /**
    * Get repository for an entity
-   * Returns cached repository if already fetched in current transaction
+   * Returns transactional repository if inside a transaction, otherwise default repository
    */
   getRepository<Entity extends ObjectLiteral>(entity: new () => Entity): Repository<Entity> {
-    if (!this.repositories.has(entity)) {
-      // If in transaction, use queryRunner's repository
-      if (this.transactionActive && this.queryRunner) {
-        const repository = this.queryRunner.manager.getRepository(entity);
-        this.repositories.set(entity, repository);
-      } else {
-        const repository = this.dataSource.getRepository(entity);
-        this.repositories.set(entity, repository);
-      }
+    const queryRunner = this.getQueryRunner();
+
+    if (queryRunner?.manager) {
+      return queryRunner.manager.getRepository(entity);
     }
 
-    return this.repositories.get(entity) as Repository<Entity>;
-  }
-
-  /**
-   * Release query runner resources
-   */
-  private async releaseQueryRunner(): Promise<void> {
-    if (this.queryRunner) {
-      await this.queryRunner.release();
-      this.queryRunner = null;
-    }
-    this.repositories.clear();
-  }
-
-  /**
-   * Clean up resources when scope ends
-   */
-  onModuleDestroy() {
-    if (this.transactionActive) {
-      this.rollbackTransaction().catch((error) => {
-        console.error('Failed to rollback transaction on destroy:', error);
-      });
-    }
-    this.releaseQueryRunner().catch((error) => {
-      console.error('Failed to release query runner on destroy:', error);
-    });
+    return this.dataSource.getRepository(entity);
   }
 }

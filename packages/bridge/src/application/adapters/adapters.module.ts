@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, OnModuleInit, Logger, Inject } from '@nestjs/common';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { BridgeLogger } from '../../logger';
 import { ConfigModule } from '../../config';
@@ -15,7 +15,7 @@ import { WebSocketModule } from '../../presentation/websocket/websocket.module';
 /**
  * Adapters Module
  * Provides chat platform adapter management
- * Follows SOLID - Single Responsibility: Only handles adapters
+ * Auto-initializes Telegram adapter on startup
  */
 @Module({
   imports: [ConfigModule, EventEmitterModule.forRoot(), SessionModule, UsersModule, WebSocketModule],
@@ -38,4 +38,21 @@ import { WebSocketModule } from '../../presentation/websocket/websocket.module';
     TelegramAdapter,
   ],
 })
-export class AdaptersModule { }
+export class AdaptersModule implements OnModuleInit {
+  private readonly logger = new Logger(AdaptersModule.name);
+
+  constructor(
+    @Inject(IAdapterFactoryService)
+    private readonly adapterFactory: IAdapterFactoryService,
+  ) { }
+
+  async onModuleInit() {
+    // Auto-initialize Telegram adapter on startup
+    try {
+      this.adapterFactory.createAdapter('telegram');
+      this.logger.log('Telegram adapter auto-initialized on startup');
+    } catch (error: any) {
+      this.logger.warn(`Telegram adapter initialization skipped: ${error.message}`);
+    }
+  }
+}

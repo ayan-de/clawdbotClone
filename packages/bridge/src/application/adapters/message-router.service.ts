@@ -203,6 +203,36 @@ export class MessageRouterService implements IMessageRouterService {
   }
 
   /**
+   * Handle desktop connected event
+   * Notifies the user via Telegram when their desktop connects
+   */
+  @OnEvent('desktop.connected')
+  async handleDesktopConnected(event: any) {
+    const { userId, desktopName } = event;
+
+    if (!userId) return;
+
+    this.logger.log(`Desktop connected for user ${userId}, desktop: ${desktopName}`);
+
+    const user = await this.usersService.findEntityById(userId);
+    if (!user || !user.telegramId) {
+      this.logger.warn(`Cannot notify user ${userId} — no telegramId`);
+      return;
+    }
+
+    const name = desktopName || 'your desktop';
+    try {
+      await this.sendToPlatform(
+        'telegram',
+        user.telegramId.toString(),
+        `✅ Connection to Orbit is established!\n🖥️ Desktop: ${name}\n\nYou can now send commands here and they will execute on your desktop.`,
+      );
+    } catch (error: any) {
+      this.logger.error(`Failed to send connection notification: ${error.message}`);
+    }
+  }
+
+  /**
    * Find user by Telegram username
    */
   private async findUserByTelegram(username?: string): Promise<User | null> {

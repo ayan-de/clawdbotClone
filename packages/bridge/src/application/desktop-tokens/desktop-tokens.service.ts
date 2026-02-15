@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
+  Inject,
 } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
@@ -22,7 +23,7 @@ export class DesktopTokensService {
   private readonly TOKEN_PREFIX = 'orbit-dsk-';
   private readonly TOKEN_LENGTH = 16;
 
-  constructor(private readonly unitOfWork: IUnitOfWork) {}
+  constructor(@Inject(IUnitOfWork) private readonly unitOfWork: IUnitOfWork) { }
 
   /**
    * Get desktop connection token repository
