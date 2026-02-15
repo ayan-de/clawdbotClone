@@ -92,6 +92,8 @@ export interface CommandResult {
   stderr?: string;
   exitCode?: number;
   duration?: number;
+  error?: string;
+  signal?: NodeJS.Signals | string;
 }
 
 /**
