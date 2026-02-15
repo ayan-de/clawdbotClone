@@ -3,6 +3,9 @@ import { Logger, LogLevel } from './logger';
 import { ConnectionState } from './types';
 import { DesktopClient } from './client';
 import { CommandHandler } from './command-handler';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
 
 /**
  * Orbit Desktop TUI - Main Entry Point
@@ -38,7 +41,8 @@ export async function main() {
 
     // Check if token is provided or config exists
     const { existsSync } = await import('fs');
-    const configDirExists = existsSync(`${require('os').homedir()}/.orbit`);
+    const os = require('os');
+    const configDirExists = existsSync(`${os.homedir()}/.orbit`);
 
     // Run setup wizard if first run
     if (!configDirExists && !cliArgs.token) {
@@ -103,7 +107,7 @@ export async function main() {
     logger.info('---');
 
     // Keep process alive
-    await new Promise(() => {});
+    await new Promise(() => { });
 
   } catch (error: any) {
     logger.error(`Failed to start Orbit Desktop TUI: ${error.message}`);

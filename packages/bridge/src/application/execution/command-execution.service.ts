@@ -6,7 +6,7 @@ import { ISessionService } from '../session/interfaces/session.service.interface
 import { UsersService } from '../users/users.service';
 import { User } from '../domain/entities/user.entity';
 import { ICommandExecutionService } from './interfaces/command-execution.interface';
-import { IDesktopGateway } from '../../presentation/websocket/interfaces/desktop-gateway.interface';
+import { DesktopGateway } from '../../presentation/websocket/desktop.gateway';
 
 /**
  * Command Execution Service
@@ -19,7 +19,7 @@ export class CommandExecutionService implements ICommandExecutionService {
     private readonly runningCommands = new Map<string, boolean>();
 
     constructor(
-        private readonly desktopGateway: IDesktopGateway,
+        private readonly desktopGateway: DesktopGateway,
         private readonly messageRouter: IMessageRouterService,
         private readonly sessionService: ISessionService,
         private readonly usersService: UsersService,
@@ -60,18 +60,12 @@ export class CommandExecutionService implements ICommandExecutionService {
             });
 
             // 3. Find available desktop
-            // Check if session already has attached desktop?
-            let desktopId = session.desktopId;
+            // Check if session already has attached desktop
+            const desktopId = session.desktopId;
 
-            // Verify desktop is still connected
-            if (!desktopId || !this.desktopGateway.sendCommand(desktopId, { type: 'ping' })) {
-                // Find new desktop
-                desktopId = this.desktopGateway.getFirstAvailableDesktop() || undefined; // Handle null
-                if (desktopId) {
-                    await this.sessionService.attachDesktop(session.id, desktopId);
-                }
-            }
-
+            // Check if user has any connected desktops
+            // We can check if this specific session has a connected desktop via the gateway or session service
+            // For now, rely on session.desktopId and handle failure if command fails
             if (!desktopId) {
                 this.logger.warn(`No desktops available for session ${session.id}`);
                 await this.messageRouter.sendToPlatform(
@@ -83,20 +77,16 @@ export class CommandExecutionService implements ICommandExecutionService {
             }
 
             // 4. Send to desktop
-            const success = this.desktopGateway.sendCommand(desktopId, {
-                type: 'execute',
-                sessionId: session.id, // Use UUID
-                command: message.content,
-                userMessage: message.content,
-            });
+            try {
+                await this.desktopGateway.sendCommand(session.id, message.content);
 
-            if (success) {
                 await this.messageRouter.sendToPlatform(
                     message.platform,
                     message.userId,
                     `⏳ Executing...`
                 );
-            } else {
+            } catch (error) {
+                this.logger.error(`Failed to send command: ${error}`);
                 await this.messageRouter.sendToPlatform(
                     message.platform,
                     message.userId,
@@ -183,26 +173,19 @@ export class CommandExecutionService implements ICommandExecutionService {
                 return false;
             }
 
-            const success = this.desktopGateway.sendCommand(session.desktopId, {
-                type: 'execute',
-                sessionId: session.id,
-                command,
-                userMessage: options?.userMessage || command,
-            });
+            await this.desktopGateway.sendCommand(session.id, command);
 
-            if (success) {
-                this.runningCommands.set(sessionId, true);
+            this.runningCommands.set(sessionId, true);
 
-                if (options?.userId && session.metadata?.platform && session.metadata?.platformUserId) {
-                    await this.messageRouter.sendToPlatform(
-                        session.metadata.platform,
-                        session.metadata.platformUserId,
-                        `⏳ Executing...`
-                    );
-                }
+            if (options?.userId && session.metadata?.platform && session.metadata?.platformUserId) {
+                await this.messageRouter.sendToPlatform(
+                    session.metadata.platform,
+                    session.metadata.platformUserId,
+                    `⏳ Executing...`
+                );
             }
 
-            return success;
+            return true;
         } catch (error) {
             this.logger.error(`Failed to execute command on session ${sessionId}: ${error}`);
             return false;
@@ -220,16 +203,26 @@ export class CommandExecutionService implements ICommandExecutionService {
                 return false;
             }
 
-            const success = this.desktopGateway.sendCommand(session.desktopId, {
-                type: 'cancel',
-                sessionId,
-            });
+            // Not yet supported in new simple interface but can be mapped to a command
+            // or we add specific cancel support later. 
+            // For now, let's assume sending Ctrl+C or similar is needed, 
+            // but the gateway sendCommand only takes a command string.
+            // We might need to send a special control command if supported.
+            // Since this is MVP, we might log warning or just return false.
 
-            if (success) {
-                this.runningCommands.delete(sessionId);
-            }
+            // NOTE: The previous code sent { type: 'cancel' }. 
+            // The new Gateway interface strictly takes (sessionId, command, requestId).
+            // We would need to handle control signals separately.
 
-            return success;
+            this.logger.warn('Cancel command not yet supported in new Gateway interface');
+
+            /*
+            await this.desktopGateway.sendCommand(session.id, 'CTRL+C'); // Hypothetical
+            this.runningCommands.delete(sessionId);
+            return true;
+            */
+
+            return false;
         } catch (error) {
             this.logger.error(`Failed to cancel command on session ${sessionId}: ${error}`);
             return false;

@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BridgeLogger } from './logger/logger.service';
 import { AppModule } from './app.module';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 
 /**
  * Bootstrap the NestJS application
@@ -19,6 +20,11 @@ async function bootstrap() {
   // Get logger instance
   const logger = app.get(BridgeLogger);
   app.useLogger(logger);
+
+  // Use Socket.io adapter for WebSocket support
+  const ioAdapter = new IoAdapter(app);
+  app.useWebSocketAdapter(ioAdapter);
+  logger.log('🔌 WebSocket adapter configured: Socket.io', 'Bootstrap');
 
   // Enable CORS with configuration
   const corsOrigin = configService.get<string>('CORS_ORIGIN') ?? '*';

@@ -5,24 +5,22 @@
  */
 export abstract class IDesktopGateway {
     /**
-     * Send a command to a specific desktop socket
-     * @returns true if successful, false if socket not found
+     * Send a command to a specific desktop session
      */
-    abstract sendCommand(socketId: string, command: any): boolean;
+    abstract sendCommand(sessionId: string, command: string, requestId?: string): Promise<void>;
 
     /**
-     * Get the first available desktop socket ID
-     * @returns socket ID or null if no desktops available
+     * Get connected desktops for a user
      */
-    abstract getFirstAvailableDesktop(): string | null;
+    abstract getConnectedDesktops(userId: string): Promise<{ sessionId: string; desktopName?: string }[]>;
 
     /**
-     * Get all connected desktop socket IDs
+     * Get active desktop count for a user
      */
-    abstract getConnectedDesktops(): string[];
+    abstract getActiveDesktopCount(userId: string): number;
 
     /**
-     * Check if a desktop socket is connected
+     * Disconnect all desktops for a user
      */
-    abstract isDesktopConnected(socketId: string): boolean;
+    abstract disconnectAllDesktops(userId: string): Promise<void>;
 }

@@ -32,6 +32,7 @@ export class SessionService implements ISessionService {
         const newSession = await this.sessionRepository.create({
             userId: user.id,
             status: 'active',
+            desktopName: platformMetadata?.desktopName,
             metadata: {
                 platform,
                 ...platformMetadata
@@ -87,5 +88,22 @@ export class SessionService implements ISessionService {
     async isSessionValid(sessionId: string): Promise<boolean> {
         const session = await this.getSession(sessionId);
         return session !== null && session.status === 'active' && !!session.desktopId;
+    }
+
+    /**
+     * Get session by desktop ID
+     */
+    async getSessionByDesktopId(desktopId: string): Promise<Session | null> {
+        return this.sessionRepository.findByDesktopId(desktopId);
+    }
+
+    /**
+     * Update session metadata
+     */
+    async updateSessionMetadata(sessionId: string, metadata: Record<string, any>): Promise<void> {
+        await this.sessionRepository.update(sessionId, {
+            metadata: metadata
+        });
+        this.logger.log(`Updated session ${sessionId} metadata`);
     }
 }

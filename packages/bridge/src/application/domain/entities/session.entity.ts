@@ -15,6 +15,10 @@ export class Session {
     @Column({ nullable: true })
     desktopId?: string; // The specific desktop connected to this session (socket ID)
 
+    @Column({ nullable: true })
+    desktopName?: string; // The hostname of the connected desktop
+
+
     @Column({ default: 'active' })
     status!: 'active' | 'inactive' | 'closed';
 

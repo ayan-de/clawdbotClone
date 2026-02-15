@@ -6,7 +6,7 @@ import { ISessionService } from '../session/interfaces/session.service.interface
 import { UserOrchestrationService } from './user-orchestration.service';
 import { DesktopSelectorService } from './desktop-selector.service';
 import { ICommandExecutionService } from './interfaces/command-execution.interface';
-import { IDesktopGateway } from '../../presentation/websocket/interfaces/desktop-gateway.interface';
+import { DesktopGateway } from '../../presentation/websocket/desktop.gateway';
 
 /**
  * Command Orchestrator Service
@@ -20,7 +20,7 @@ export class CommandOrchestratorService implements ICommandExecutionService {
     private readonly runningCommands = new Map<string, boolean>();
 
     constructor(
-        private readonly desktopGateway: IDesktopGateway,
+        private readonly desktopGateway: DesktopGateway,
         private readonly messageRouter: IMessageRouterService,
         private readonly sessionService: ISessionService,
         private readonly userOrchestration: UserOrchestrationService,
@@ -29,8 +29,10 @@ export class CommandOrchestratorService implements ICommandExecutionService {
 
     /**
      * Handle incoming chat message from platforms
+     * NOTE: This is disabled - MessageRouterService handles the complete flow
+     * from chat → desktop → output routing
      */
-    @OnEvent(ChatEvent.MESSAGE_RECEIVED)
+    // @OnEvent(ChatEvent.MESSAGE_RECEIVED)
     async handleIncomingMessage(message: IncomingMessage): Promise<void> {
         this.logger.log(`Processing message from ${message.userId} (${message.platform}): ${message.content}`);
 
@@ -135,26 +137,19 @@ export class CommandOrchestratorService implements ICommandExecutionService {
                 return false;
             }
 
-            const success = this.desktopGateway.sendCommand(session.desktopId, {
-                type: 'execute',
-                sessionId: session.id,
-                command,
-                userMessage: options?.userMessage || command,
-            });
+            await this.desktopGateway.sendCommand(session.id, command);
 
-            if (success) {
-                this.runningCommands.set(sessionId, true);
+            this.runningCommands.set(sessionId, true);
 
-                if (options?.userId && session.metadata?.platform && session.metadata?.platformUserId) {
-                    await this.messageRouter.sendToPlatform(
-                        session.metadata.platform,
-                        session.metadata.platformUserId,
-                        '⏳ Executing...',
-                    );
-                }
+            if (options?.userId && session.metadata?.platform && session.metadata?.platformUserId) {
+                await this.messageRouter.sendToPlatform(
+                    session.metadata.platform,
+                    session.metadata.platformUserId,
+                    '⏳ Executing...',
+                );
             }
 
-            return success;
+            return true;
         } catch (error) {
             this.logger.error(`Failed to execute command on session ${sessionId}: ${error}`);
             return false;
@@ -172,16 +167,16 @@ export class CommandOrchestratorService implements ICommandExecutionService {
                 return false;
             }
 
-            const success = this.desktopGateway.sendCommand(session.desktopId, {
-                type: 'cancel',
-                sessionId,
-            });
+            // Not yet supported in new simple interface but can be mapped to a command
+            // or we add specific cancel support later. 
+            // For now, let's assume sending Ctrl+C or similar is needed, 
+            // but the gateway sendCommand only takes a command string.
+            // We might need to send a special control command if supported.
+            // Since this is MVP, we might log warning or just return false.
 
-            if (success) {
-                this.runningCommands.delete(sessionId);
-            }
+            this.logger.warn('Cancel command not yet supported in new Gateway interface');
 
-            return success;
+            return false;
         } catch (error) {
             this.logger.error(`Failed to cancel command on session ${sessionId}: ${error}`);
             return false;

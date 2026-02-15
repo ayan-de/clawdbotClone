@@ -10,6 +10,7 @@ import { IAdapterFactoryService } from './interfaces/adapter-factory.interface';
 import { IMessageRouterService } from './interfaces/message-router.interface';
 import { SessionModule } from '../session/session.module';
 import { UsersModule } from '../users/users.module';
+import { WebSocketModule } from '../../presentation/websocket/websocket.module';
 
 /**
  * Adapters Module
@@ -17,7 +18,7 @@ import { UsersModule } from '../users/users.module';
  * Follows SOLID - Single Responsibility: Only handles adapters
  */
 @Module({
-  imports: [ConfigModule, EventEmitterModule.forRoot(), SessionModule, UsersModule],
+  imports: [ConfigModule, EventEmitterModule.forRoot(), SessionModule, UsersModule, WebSocketModule],
   controllers: [WebhooksController],
   providers: [
     BridgeLogger,

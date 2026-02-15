@@ -9,15 +9,32 @@ import {
   DesktopMessage,
   BridgeMessage,
 } from './types';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
 const logger = Logger.getInstance();
 
-/**
- * Desktop Client class
- * Manages WebSocket connection to Bridge Server
- */
 export class DesktopClient {
   private socket: Socket | null = null;
+  // ... existing code ...
+
+  /**
+   * Get desktop capabilities
+   */
+  private getCapabilities(): any {
+    const os = require('os');
+    const process = require('process');
+
+    return {
+      os: os.platform(),
+      osVersion: os.release(),
+      arch: os.arch(),
+      hostname: os.hostname(),
+      shell: process.env.SHELL || 'unknown',
+      nodeVersion: process.version,
+      workspace: this.commandHandler.getWorkingDir(),
+    };
+  }
   private config: OrbitConfig;
   private commandHandler: CommandHandler;
   private connectionState: ConnectionState = ConnectionState.DISCONNECTED;
@@ -60,20 +77,32 @@ export class DesktopClient {
         upgrade: false,
       });
 
+      logger.debug(`Socket.io client created with options: ${JSON.stringify({
+        reconnection: this.config.autoReconnect,
+        reconnectionDelay: this.reconnectDelay,
+        reconnectionAttempts: this.maxReconnectAttempts,
+        timeout: this.config.timeout ? this.config.timeout * 1000 : 30000,
+        transports: ['websocket'],
+        upgrade: false,
+      })}`);
+
       // Handle connection success
       this.socket.on('connect', () => {
+        logger.info(`Socket connected event received`);
         this.handleConnect();
         resolve(true);
       });
 
       // Handle connection error
       this.socket.on('connect_error', (error: Error) => {
+        logger.error(`Socket connect_error: ${error.message}`);
         this.handleConnectError(error);
         resolve(false);
       });
 
       // Handle disconnection
       this.socket.on('disconnect', (reason: string) => {
+        logger.info(`Socket disconnected: ${reason}`);
         this.handleDisconnect(reason);
       });
 
@@ -87,6 +116,7 @@ export class DesktopClient {
 
       // Handle errors
       this.socket.on('error', (error: Error) => {
+        logger.error(`Socket error: ${error.message}`);
         this.handleError(error);
       });
     });
@@ -110,8 +140,11 @@ export class DesktopClient {
 
     // Session created confirmation
     this.socket.on(BridgeMessageType.AUTHENTICATED, (data: any) => {
-      logger.info('Successfully authenticated with Bridge Server');
-      this.sessionId = data.sessionId;
+      logger.info(`Successfully authenticated with Bridge Server. Session: ${data?.sessionId}`);
+      // Data is sent directly, not wrapped in a 'data' property
+      this.sessionId = data?.sessionId || data?.id;
+      // Start heartbeat to keep connection alive
+      this.startHeartbeat();
     });
 
     // Session closed
@@ -127,7 +160,7 @@ export class DesktopClient {
   private handleConnect(): void {
     this.setConnectionState(ConnectionState.CONNECTED);
     this.reconnectAttempts = 0;
-    logger.info('Connected to Bridge Server');
+    logger.info(`Connected to Bridge Server. Socket ID: ${this.socket?.id}`);
 
     // Authenticate with token
     this.authenticate();
@@ -138,21 +171,21 @@ export class DesktopClient {
    */
   private authenticate(): void {
     if (!this.socket || !this.config.token) {
+      logger.error('Cannot authenticate: socket or token not available');
       return;
     }
 
-    const authMessage: DesktopMessage = {
-      type: DesktopMessageType.AUTHENTICATE,
-      data: {
-        token: this.config.token,
-        desktopName: this.config.desktopName,
-        capabilities: this.getCapabilities(),
-      },
-      timestamp: Date.now(),
+    const authData = {
+      token: this.config.token,
+      desktopName: this.config.desktopName,
+      capabilities: this.getCapabilities(),
     };
 
-    this.socket.emit('message', authMessage);
-    logger.debug('Authentication message sent');
+    logger.debug(`Sending authentication message: ${JSON.stringify({ ...authData, token: authData.token?.substring(0, 10) + '...' })}`);
+
+    // Emit to 'authenticate' event (not 'message')
+    this.socket.emit('authenticate', authData);
+    logger.info('Authentication message sent');
   }
 
   /**
@@ -226,88 +259,71 @@ export class DesktopClient {
    * Handle command execution request from Bridge
    */
   private async handleCommandRequest(data: any): Promise<void> {
-    const { command, userMessage, requestId } = data.data || {};
+    // Bridge sends data directly, not wrapped in a 'data' property
+    const { command, requestId, sessionId } = data || {};
+    // Use sessionId from data, or fallback to stored sessionId
+    const sid = sessionId || this.sessionId;
 
-    logger.info(`Received command: ${command}${userMessage ? ` (user: "${userMessage}")` : ''}`);
+    logger.info(`Received command: ${command} (session: ${sid}, requestId: ${requestId})`);
 
     try {
       // Execute command with streaming output
       const result = await this.commandHandler.executeCommand(
         command,
         (output: string) => {
-          this.sendCommandOutput(requestId, output);
+          this.sendCommandOutput(sid, requestId, output);
         },
         (progress: { stdout?: string; stderr?: string }) => {
-          this.sendCommandProgress(requestId, progress);
+          this.sendCommandProgress(sid, requestId, progress);
         },
       );
 
       // Send completion message
-      this.sendCommandComplete(requestId, result.result);
+      this.sendCommandComplete(sid, requestId, result.result);
 
     } catch (error: any) {
       logger.error(`Command execution error: ${error.message}`);
 
       // Send error message
-      const errorMessage: DesktopMessage = {
-        type: DesktopMessageType.COMMAND_ERROR,
-        data: {
-          requestId,
-          error: error.message,
-        },
-        timestamp: Date.now(),
-      };
-
-      this.socket?.emit('message', errorMessage);
+      this.socket?.emit('command_error', {
+        sessionId: sid,
+        requestId,
+        error: error.message,
+      });
     }
   }
 
   /**
    * Send command output to Bridge Server
    */
-  private sendCommandOutput(requestId: string, output: string): void {
-    const message: DesktopMessage = {
-      type: DesktopMessageType.COMMAND_OUTPUT,
-      data: {
-        requestId,
-        output,
-      },
-      timestamp: Date.now(),
-    };
-
-    this.socket?.emit('message', message);
+  private sendCommandOutput(sessionId: string | undefined, requestId: string, output: string): void {
+    this.socket?.emit('command_output', {
+      sessionId: sessionId || this.sessionId,
+      requestId,
+      output,
+    });
   }
 
   /**
    * Send command progress to Bridge Server
    */
-  private sendCommandProgress(requestId: string, progress: { stdout?: string; stderr?: string }): void {
-    const message: DesktopMessage = {
-      type: DesktopMessageType.COMMAND_OUTPUT,
-      data: {
-        requestId,
-        ...progress,
-      },
-      timestamp: Date.now(),
-    };
-
-    this.socket?.emit('message', message);
+  private sendCommandProgress(sessionId: string | undefined, requestId: string, progress: { stdout?: string; stderr?: string }): void {
+    this.socket?.emit('command_output', {
+      sessionId: sessionId || this.sessionId,
+      requestId,
+      output: progress.stdout || progress.stderr || '',
+    });
   }
 
   /**
    * Send command completion to Bridge Server
    */
-  private sendCommandComplete(requestId: string, result: any): void {
-    const message: DesktopMessage = {
-      type: DesktopMessageType.COMMAND_COMPLETE,
-      data: {
-        requestId,
-        result,
-      },
-      timestamp: Date.now(),
-    };
-
-    this.socket?.emit('message', message);
+  private sendCommandComplete(sessionId: string | undefined, requestId: string, result: any): void {
+    this.socket?.emit('command_complete', {
+      sessionId: sessionId || this.sessionId,
+      requestId,
+      result,
+    });
     logger.debug(`Command completed: ${requestId}`);
   }
 
@@ -319,12 +335,12 @@ export class DesktopClient {
       type: DesktopMessageType.HEARTBEAT,
       data: {
         sessionId: this.sessionId,
-      timestamp: Date.now(),
+        timestamp: Date.now(),
       },
       timestamp: Date.now(),
     };
 
-    this.socket?.emit('message', message);
+    this.socket?.emit('heartbeat', message.data);
   }
 
   /**
@@ -351,23 +367,7 @@ export class DesktopClient {
     }
   }
 
-  /**
-   * Get desktop capabilities
-   */
-  private getCapabilities(): any {
-    const os = require('os');
-    const process = require('process');
 
-    return {
-      os: os.platform(),
-      osVersion: os.release(),
-      arch: os.arch(),
-      hostname: os.hostname(),
-      shell: process.env.SHELL || 'unknown',
-      nodeVersion: process.version,
-      workspace: this.commandHandler.getWorkingDir(),
-    };
-  }
 
   /**
    * Get current connection state

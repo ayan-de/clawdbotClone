@@ -30,11 +30,22 @@ export abstract class BaseWebSocketGateway
   protected server!: Server;
 
   private _logger: Logger | null = null;
-  protected clients = new Map<string, Socket>();
+  private _clients: Map<string, Socket> | null = null;
 
   constructor(protected readonly bridgeLogger: BridgeLogger) {
     this._logger = new Logger(this.constructor.name);
-    this.clients = new Map<string, Socket>();
+    this._logger.log(`BaseWebSocketGateway constructor called for ${this.constructor.name}`);
+  }
+
+  protected get clients(): Map<string, Socket> {
+    if (!this._clients) {
+      this._clients = new Map<string, Socket>();
+    }
+    return this._clients;
+  }
+
+  protected set clients(value: Map<string, Socket>) {
+    this._clients = value;
   }
 
   protected get logger(): Logger {
@@ -48,8 +59,10 @@ export abstract class BaseWebSocketGateway
    * Gateway initialization
    */
   afterInit(): void {
+    if (!this._clients) {
+      this._clients = new Map<string, Socket>();
+    }
     this.logger.log(`WebSocket Gateway initialized: ${this.constructor.name}`);
-    this.logger.debug(`Clients map initialized: ${!!this.clients}, size: ${this.clients?.size}`);
     this.setupHeartbeat();
   }
 
@@ -57,12 +70,19 @@ export abstract class BaseWebSocketGateway
    * Client connection
    */
   handleConnection(client: Socket): void {
-    this.clients.set(client.id, client);
-    this.logger.debug(`Client connected: ${client.id} (Total: ${this.clients.size})`);
+    if (!this._clients) {
+      this._clients = new Map<string, Socket>();
+    }
+    this._clients.set(client.id, client);
+    (client as any).connectedAt = Date.now();
+    (client as any).lastHeartbeat = Date.now();
+
+    this.logger.debug(`Client connected: ${client.id} (Total: ${this._clients.size})`);
 
     // Send connected event
     client.emit('connected', {
       sessionId: (client as any).sessionId,
+      timestamp: Date.now(),
     });
   }
 
@@ -70,17 +90,12 @@ export abstract class BaseWebSocketGateway
    * Client disconnection
    */
   handleDisconnect(client: Socket): void {
-    this.clients.delete(client.id);
-    const userId = (client as any).user?.id;
-
-    this.logger.debug(
-      `Client disconnected: ${client.id} (Total: ${this.clients.size})`,
-    );
-
-    // Send disconnected event
-    client.emit('disconnected', {
-      reason: client.data?.reason || 'client_disconnect',
-    });
+    if (this._clients) {
+      this._clients.delete(client.id);
+      this.logger.debug(`Client disconnected: ${client.id} (Total: ${this._clients.size})`);
+    } else {
+      this.logger.debug(`Client disconnected: ${client.id}`);
+    }
   }
 
   /**
@@ -177,21 +192,26 @@ export abstract class BaseWebSocketGateway
    * Check heartbeat of all clients
    */
   private checkHeartbeat(): void {
-    if (!this.clients) {
-      this.logger.warn(`Clients map not initialized in checkHeartbeat. Keys on this: ${Object.keys(this)}`);
+    if (!this._clients) {
       return;
     }
 
     const now = Date.now();
-    const STALE_TIMEOUT = 120000; // 2 minutes
+    const HEARTBEAT_TIMEOUT = 120000; // 2 minutes
 
-    for (const [clientId, client] of this.clients.entries()) {
-      const lastHeartbeat = (client as any).lastHeartbeat || 0;
+    // Convert keys to array to avoid modification during iteration issues
+    const clientIds = Array.from(this._clients.keys());
 
-      if (now - lastHeartbeat > STALE_TIMEOUT) {
+    for (const clientId of clientIds) {
+      const client = this._clients.get(clientId);
+      if (!client) continue;
+
+      const lastHeartbeat = (client as any).lastHeartbeat || (client as any).connectedAt || now;
+
+      if (now - lastHeartbeat > HEARTBEAT_TIMEOUT) {
         this.logger.warn(`Stale client detected: ${clientId}`);
         client.disconnect(true);
-        this.clients.delete(clientId);
+        this._clients.delete(clientId);
       }
     }
   }

@@ -59,7 +59,7 @@ export interface CliArgs {
  * Default configuration values
  */
 const DEFAULT_CONFIG: Partial<OrbitConfig> = {
-  bridgeUrl: 'ws://localhost:5000',
+  bridgeUrl: 'ws://localhost:5000/desktop',
   debug: false,
   timeout: 30,
   autoReconnect: true,

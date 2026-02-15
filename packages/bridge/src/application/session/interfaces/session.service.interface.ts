@@ -45,4 +45,14 @@ export abstract class ISessionService {
      * Check if a session is valid (active and has a desktop attached)
      */
     abstract isSessionValid(sessionId: string): Promise<boolean>;
+
+    /**
+     * Get session by desktop ID
+     */
+    abstract getSessionByDesktopId(desktopId: string): Promise<Session | null>;
+
+    /**
+     * Update session metadata
+     */
+    abstract updateSessionMetadata(sessionId: string, metadata: Record<string, any>): Promise<void>;
 }

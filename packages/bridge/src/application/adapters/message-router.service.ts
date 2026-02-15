@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { IAdapterFactoryService } from './interfaces/adapter-factory.interface';
 import { ChatEvent, IncomingMessage } from './chat-adapter.interface';
@@ -8,6 +8,7 @@ import { TelegramTransformer, DiscordTransformer, SlackTransformer } from './tra
 import { ISessionService } from '../session/interfaces/session.service.interface';
 import { UsersService } from '../users/users.service';
 import { User } from '../domain/entities/user.entity';
+import { DesktopGateway } from '../../presentation/websocket/desktop.gateway';
 
 /**
  * Message Router Service
@@ -24,6 +25,7 @@ export class MessageRouterService implements IMessageRouterService {
     private readonly adapterFactory: IAdapterFactoryService,
     private readonly sessionService: ISessionService,
     private readonly usersService: UsersService,
+    private readonly desktopGateway: DesktopGateway,
   ) {
     this.initializeTransformers();
   }
@@ -69,10 +71,25 @@ export class MessageRouterService implements IMessageRouterService {
       return;
     }
 
+    // Update user's telegramId if not set (needed for response routing)
+    if (user && !user.telegramId && message.userId) {
+      const numericTelegramId = parseInt(message.userId, 10);
+      if (!isNaN(numericTelegramId)) {
+        try {
+          await (this.usersService as any).update(user.id, { telegramId: numericTelegramId });
+          this.logger.log(`Updated user ${user.id} with telegramId: ${numericTelegramId}`);
+          user.telegramId = numericTelegramId; // Update in-memory reference
+        } catch (error) {
+          this.logger.warn(`Failed to update telegramId for user ${user.id}: ${error}`);
+        }
+      }
+    }
+
     // Check if user has active desktop session (real-time)
     const activeSessions = await this.sessionService.getActiveSessionsByUserId(user.id);
 
     if (!activeSessions || activeSessions.length === 0) {
+      this.logger.warn(`No active sessions for user: ${user.id}`);
       await this.sendToPlatform(
         message.platform,
         message.chatId || message.userId,
@@ -81,15 +98,108 @@ export class MessageRouterService implements IMessageRouterService {
       return;
     }
 
-    // TODO: Phase 2 - Route to AI service for command generation
-    // TODO: Phase 2 - Send commands to TUI via WebSocket
+    // Update session with Telegram metadata for response routing
+    const session = activeSessions[0];
+    await this.sessionService.updateSessionMetadata(session.id, {
+      platform: message.platform,
+      platformUserId: message.userId,
+      chatId: message.chatId,
+      username: message.username,
+    });
 
-    // For now, acknowledge receipt
-    await this.sendToPlatform(
-      message.platform,
-      message.chatId || message.userId,
-      `Received: "${message.content}"`,
-    );
+    // Route command to TUI via WebSocket
+    const sessionId = activeSessions[0].id; // Use first active session
+    const command = message.content;
+
+    this.logger.log(`Routing command to desktop session ${sessionId}: ${command}`);
+
+    try {
+      await this.desktopGateway.sendCommand(sessionId, command);
+
+      // Optionally acknowledge receipt if needed, but streaming output is better
+      // await this.sendToPlatform(
+      //   message.platform,
+      //   message.chatId || message.userId,
+      //   `Executing: "${command}"...`,
+      // );
+    } catch (error: any) {
+      this.logger.error(`Failed to route command to desktop: ${error.message}`);
+      await this.sendToPlatform(
+        message.platform,
+        message.chatId || message.userId,
+        `Error executing command: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Handle desktop output event
+   * Routes output back to user via Telegram (or other platform)
+   */
+  @OnEvent('desktop.output')
+  async handleDesktopOutput(event: any) {
+    const { userId, output } = event;
+
+    if (!userId || !output) return;
+
+    this.logger.log(`Desktop output for user ${userId}: ${output?.substring(0, 80)}...`);
+
+    // Find user to get Telegram chat ID
+    const user = await this.usersService.findEntityById(userId);
+
+    if (!user) {
+      this.logger.warn(`User not found for desktop output: ${userId}`);
+      return;
+    }
+
+    // Send to Telegram if user has telegramId
+    if (user.telegramId) {
+      try {
+        await this.sendToPlatform('telegram', user.telegramId.toString(), output);
+      } catch (error) {
+        this.logger.error(`Failed to send output to Telegram: ${error}`);
+      }
+    } else {
+      this.logger.warn(`User ${userId} has no telegramId linked`);
+    }
+  }
+
+  /**
+   * Handle desktop command completion
+   */
+  @OnEvent('desktop.complete')
+  async handleDesktopComplete(event: any) {
+    const { userId, result } = event;
+
+    if (!userId) return;
+
+    const user = await this.usersService.findEntityById(userId);
+    if (!user || !user.telegramId) return;
+
+    // Send final result output if available
+    if (result?.stdout) {
+      await this.sendToPlatform('telegram', user.telegramId.toString(), result.stdout);
+    }
+
+    if (!result?.success) {
+      const errorMsg = result?.stderr || result?.error || 'Unknown error';
+      await this.sendToPlatform('telegram', user.telegramId.toString(), `❌ Command failed: ${errorMsg}`);
+    }
+  }
+
+  /**
+   * Handle desktop error
+   */
+  @OnEvent('desktop.error')
+  async handleDesktopError(event: any) {
+    const { userId, error } = event;
+
+    if (!userId || !error) return;
+
+    const user = await this.usersService.findEntityById(userId);
+    if (!user || !user.telegramId) return;
+
+    await this.sendToPlatform('telegram', user.telegramId.toString(), `❌ Error: ${error}`);
   }
 
   /**
@@ -99,7 +209,7 @@ export class MessageRouterService implements IMessageRouterService {
     if (!username) {
       return null;
     }
-    return (this.usersService as any).findEntityByTelegramUsername(username);
+    return this.usersService.findEntityByTelegramUsername(username);
   }
 
   /**

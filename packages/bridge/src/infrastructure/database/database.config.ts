@@ -4,6 +4,7 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 import { User } from '../../application/domain/entities/user.entity';
 import { OAuthAccount } from '../../application/domain/entities/oauth-account.entity';
 import { Session } from '../../application/domain/entities/session.entity';
+import { DesktopConnectionToken } from '../../application/domain/entities/desktop-connection-token.entity';
 
 /**
  * Database Configuration
@@ -21,7 +22,7 @@ export class DatabaseConfig {
     return {
       type: 'postgres',
       url: this.getDatabaseUrl(configService),
-      entities: [User, OAuthAccount, Session],
+      entities: [User, OAuthAccount, Session, DesktopConnectionToken],
       synchronize: synchronize && !isProduction, // Never sync in production
       logging: !isProduction && configService.get<string>('LOG_LEVEL') === 'debug',
       ssl: this.getSSLOptions(isProduction, configService),

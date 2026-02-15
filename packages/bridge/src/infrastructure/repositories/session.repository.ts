@@ -40,4 +40,8 @@ export class SessionRepository implements ISessionRepository {
             order: { createdAt: 'DESC' },
         });
     }
+
+    async findByDesktopId(desktopId: string): Promise<Session | null> {
+        return this.repository.findOne({ where: { desktopId, status: 'active' } });
+    }
 }

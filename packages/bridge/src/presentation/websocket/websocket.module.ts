@@ -7,6 +7,7 @@ import { DesktopGateway } from './desktop.gateway';
 import { IDesktopGateway } from './interfaces/desktop-gateway.interface';
 import { ConfigModule } from '../../config';
 import { SessionModule } from '../../application/session/session.module';
+import { DesktopTokensModule } from '../../application/desktop-tokens/desktop-tokens.module';
 
 /**
  * WebSocket Module
@@ -14,16 +15,22 @@ import { SessionModule } from '../../application/session/session.module';
  * Follows SOLID - Single Responsibility: Only handles WebSocket connections
  */
 @Module({
-  imports: [ConfigModule, EventEmitterModule, SessionModule, AuthModule],
+  imports: [
+    ConfigModule,
+    EventEmitterModule,
+    SessionModule,
+    AuthModule,
+    DesktopTokensModule,
+  ],
   providers: [
     BridgeLogger,
     BridgeWebSocketGateway,
+    DesktopGateway,
     {
       provide: IDesktopGateway,
-      useClass: DesktopGateway,
+      useExisting: DesktopGateway,
     },
-    DesktopGateway, // Providing concrete class too for internal module consumption if needed (e.g. BridgeWebSocketGateway)
   ],
-  exports: [BridgeWebSocketGateway, IDesktopGateway],
+  exports: [BridgeWebSocketGateway, DesktopGateway, IDesktopGateway],
 })
 export class WebSocketModule { }

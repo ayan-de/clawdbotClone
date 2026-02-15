@@ -155,6 +155,14 @@ export class UsersService {
   }
 
   /**
+   * Find user entity by ID (internal use)
+   */
+  async findEntityById(id: string): Promise<User | null> {
+    const userRepo = this.getUserRepository();
+    return userRepo.findOne({ where: { id } });
+  }
+
+  /**
    * Get all users (with pagination)
    */
   async findAll(

@@ -3,6 +3,7 @@ import {
   SubscribeMessage,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
@@ -34,7 +35,7 @@ import { ISessionService } from '../../application/session/interfaces/session.se
 })
 export class BridgeWebSocketGateway
   extends BaseWebSocketGateway
-  implements OnGatewayConnection, OnGatewayDisconnect {
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     bridgeLogger: BridgeLogger,
     private readonly authService: AuthService,
@@ -42,6 +43,14 @@ export class BridgeWebSocketGateway
     private readonly sessionService: ISessionService,
   ) {
     super(bridgeLogger);
+  }
+
+  /**
+   * Gateway initialization
+   */
+  afterInit(): void {
+    super.afterInit();
+    this.logger.log(`Bridge WebSocket Gateway initialized with namespace: /bridge`);
   }
 
   /**

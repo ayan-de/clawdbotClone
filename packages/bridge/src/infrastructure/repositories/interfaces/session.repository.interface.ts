@@ -35,4 +35,9 @@ export abstract class ISessionRepository {
      * Find all sessions for a user
      */
     abstract findByUserId(userId: string): Promise<Session[]>;
+
+    /**
+     * Find a session by desktop ID (socket ID)
+     */
+    abstract findByDesktopId(desktopId: string): Promise<Session | null>;
 }
