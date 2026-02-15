@@ -5,6 +5,7 @@ import { UnitOfWorkModule } from './infrastructure';
 import { AuthModule } from './application/auth';
 import { UsersModule } from './application/users';
 import { SessionModule } from './application/session/session.module';
+import { DesktopTokensModule } from './application/desktop-tokens/desktop-tokens.module';
 import { WebSocketModule } from './presentation/websocket';
 import { AdaptersModule } from './application/adapters';
 import { ExecutionModule } from './application/execution/execution.module';
@@ -33,6 +34,7 @@ import { AppController } from './app.controller';
     AuthModule,
     UsersModule,
     SessionModule,
+    DesktopTokensModule,
     ExecutionModule,
 
     // Presentation Layer

@@ -16,6 +16,27 @@ type ApiResponse = {
   selectedAiProvider?: "openai" | "claude" | "ollama";
 };
 
+type DesktopTokenResponse = {
+  token: string;
+  displayToken: string;
+  expiresAt: string;
+  desktopName?: string;
+  instructions: string;
+  connectCommand: string;
+};
+
+type ApiResponse = {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  displayName?: string;
+  picture?: string;
+  telegramUsername?: string;
+  telegramId?: number;
+  selectedAiProvider?: "openai" | "claude" | "ollama";
+};
+
 export default function AuthCallbackPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -27,6 +48,11 @@ export default function AuthCallbackPage() {
   const [stars, setStars] = useState<
     { id: number; top: string; left: string; size: string; duration: string }[]
   >([]);
+
+  // Desktop token state
+  const [desktopToken, setDesktopToken] = useState<DesktopTokenResponse | null>(null);
+  const [generatingToken, setGeneratingToken] = useState(false);
+  const [showTokenModal, setShowTokenModal] = useState(false);
 
   useEffect(() => {
     // Initialize stars
@@ -79,6 +105,48 @@ export default function AuthCallbackPage() {
 
   const handleSignup = () => {
     router.push(`/signup?token=${token}`);
+  };
+
+  const generateDesktopToken = async () => {
+    setGeneratingToken(true);
+    setError("");
+
+    try {
+      const response = await fetch("http://localhost:5000/desktop/tokens", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({}),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate connection token");
+      }
+
+      const data: DesktopTokenResponse = await response.json();
+      setDesktopToken(data);
+      setShowTokenModal(true);
+    } catch (err: any) {
+      setError(err.message || "Failed to generate desktop token. Please try again.");
+    } finally {
+      setGeneratingToken(false);
+    }
+  };
+
+  const handleCopyToken = () => {
+    if (desktopToken) {
+      navigator.clipboard.writeText(desktopToken.connectCommand);
+      setTimeout(() => {
+        setShowTokenModal(false);
+      }, 2000);
+    }
+  };
+
+  const formatExpirationTime = (isoString: string) => {
+    const date = new Date(isoString);
+    return date.toLocaleString();
   };
 
   return (
@@ -200,6 +268,16 @@ export default function AuthCallbackPage() {
               </button>
             )}
 
+            {user.telegramUsername && (
+              <button
+                onClick={generateDesktopToken}
+                disabled={generatingToken}
+                className="w-full px-6 py-3 bg-white text-black text-xs font-bold uppercase tracking-widest hover:bg-white/80 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {generatingToken ? "Generating Token..." : "Connect Desktop"}
+              </button>
+            )}
+
             {/* Instructions Card */}
             <div className="w-full border-2 border-white/10 bg-black/90 p-6 relative shadow-[0_0_50px_rgba(255,255,255,0.1)] backdrop-blur-xl">
               <div className="bg-white/10 px-4 py-2 text-[10px] uppercase tracking-widest mb-4">
@@ -231,6 +309,71 @@ export default function AuthCallbackPage() {
             </div>
           </div>
         ) : null}
+
+        {/* Desktop Token Modal */}
+        {showTokenModal && desktopToken && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center px-4">
+            <div className="w-full max-w-2xl border-2 border-white/20 bg-black/95 p-6 relative shadow-[0_0_100px_rgba(255,255,255,0.2)]">
+              {/* Header */}
+              <div className="bg-white/10 px-4 py-2 flex items-center justify-between text-[10px] uppercase tracking-widest mb-4">
+                <span>Desktop Connection Token</span>
+                <button
+                  onClick={() => setShowTokenModal(false)}
+                  className="text-white/60 hover:text-white transition-colors"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Token Display */}
+              <div className="space-y-6">
+                {/* Token */}
+                <div className="border border-white/20 p-4 bg-white/5">
+                  <p className="text-xs uppercase tracking-widest text-white/60 mb-2">
+                    Connection Token
+                  </p>
+                  <div className="bg-black/60 p-4 border border-white/20 font-mono text-sm text-green-400 break-all">
+                    {desktopToken.token}
+                  </div>
+                </div>
+
+                {/* Expiration */}
+                <div className="flex items-center justify-between text-xs text-white/60">
+                  <span>Expires at:</span>
+                  <span className="text-yellow-400">{formatExpirationTime(desktopToken.expiresAt)}</span>
+                </div>
+
+                {/* Instructions */}
+                <div className="text-xs text-white/80">
+                  <p className="mb-2">{desktopToken.instructions}</p>
+                </div>
+
+                {/* Connect Command */}
+                <div className="border border-white/20 p-4 bg-black/80">
+                  <p className="text-xs uppercase tracking-widest text-white/60 mb-2">
+                    Connect Command
+                  </p>
+                  <code className="text-sm text-white block break-all">
+                    <span className="text-cyan-400">$</span>
+                    <span className="ml-2">{desktopToken.connectCommand}</span>
+                  </code>
+                </div>
+
+                {/* Copy Button */}
+                <button
+                  onClick={handleCopyToken}
+                  className="w-full px-6 py-3 bg-white text-black text-xs font-bold uppercase tracking-widest hover:bg-white/80 transition-all active:scale-95"
+                >
+                  Copy & Close
+                </button>
+              </div>
+
+              {/* Footer Decoration */}
+              <div className="absolute -bottom-2 -right-2 w-12 h-12 border-b-2 border-r-2 border-white/40 pointer-events-none"></div>
+              <div className="absolute -top-2 -left-2 w-12 h-12 border-t-2 border-l-2 border-white/40 pointer-events-none"></div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
