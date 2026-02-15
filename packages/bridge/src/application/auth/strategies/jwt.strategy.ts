@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
-import { AuthService } from '../auth.service';
+import { DataSource } from 'typeorm';
 import { JwtPayload } from '../jwt/jwt-payload.interface';
 import { User } from '../../domain/entities';
 
@@ -12,9 +12,9 @@ import { User } from '../../domain/entities';
  * Used by JwtAuthGuard to protect routes
  */
 @Injectable()
-export class JwtStrategy extends PassportStrategy(Strategy) {
+export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
-    private readonly authService: AuthService,
+    private readonly dataSource: DataSource,
     private readonly configService: ConfigService,
   ) {
     super({
@@ -22,6 +22,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       ignoreExpiration: false,
       secretOrKey: configService.get<string>('JWT_SECRET', 'secret'),
     });
+    console.log('JwtStrategy initialized');
   }
 
   /**
@@ -30,13 +31,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * Returns user which is attached to request object
    */
   async validate(payload: JwtPayload): Promise<User> {
-    const user = await this.authService.validateUser(payload);
+    console.log('JwtStrategy.validate called with payload:', payload);
+    const userRepo = this.dataSource.getRepository(User);
+    const user = await userRepo.findOne({ where: { id: payload.sub } });
+    console.log('JwtStrategy found user:', user ? user.id : 'null');
 
     if (!user) {
+      console.warn('JwtStrategy: User not found for id:', payload.sub);
       throw new UnauthorizedException('Invalid token: user not found');
     }
 
     if (!user.isActive) {
+      console.warn('JwtStrategy: User is inactive:', user.id);
       throw new UnauthorizedException('User account is inactive');
     }
 

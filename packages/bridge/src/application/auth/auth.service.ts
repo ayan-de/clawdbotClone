@@ -23,7 +23,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly unitOfWork: IUnitOfWork,
     private readonly googleStrategy: GoogleOAuthStrategy,
-  ) {}
+  ) { }
 
   /**
    * Get user repository
@@ -48,7 +48,7 @@ export class AuthService {
       email: user.email,
     };
 
-    const expiresIn = this.configService.get<number>('JWT_EXPIRATION', 3600);
+    const expiresIn = Number(this.configService.get<number>('JWT_EXPIRATION', 3600));
     const secret = this.configService.get<string>('JWT_SECRET', 'secret');
 
     return this.jwtService.sign(payload, {

@@ -8,6 +8,8 @@ import { MessageRouterService } from './message-router.service';
 import { WebhooksController } from '../../presentation/controllers/webhooks.controller';
 import { IAdapterFactoryService } from './interfaces/adapter-factory.interface';
 import { IMessageRouterService } from './interfaces/message-router.interface';
+import { SessionModule } from '../session/session.module';
+import { UsersModule } from '../users/users.module';
 
 /**
  * Adapters Module
@@ -15,7 +17,7 @@ import { IMessageRouterService } from './interfaces/message-router.interface';
  * Follows SOLID - Single Responsibility: Only handles adapters
  */
 @Module({
-  imports: [ConfigModule, EventEmitterModule.forRoot()],
+  imports: [ConfigModule, EventEmitterModule.forRoot(), SessionModule, UsersModule],
   controllers: [WebhooksController],
   providers: [
     BridgeLogger,

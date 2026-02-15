@@ -5,6 +5,8 @@ import {
   IsBoolean,
   MaxLength,
   MinLength,
+  IsEnum,
+  IsNumber,
 } from 'class-validator';
 
 /**
@@ -44,4 +46,27 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  // Telegram Integration
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  telegramUsername?: string;
+
+  @IsOptional()
+  @IsNumber()
+  telegramId?: number;
+
+  // AI Provider Settings
+  @IsOptional()
+  @IsEnum(['openai', 'claude', 'ollama'], { message: 'Must be one of: openai, claude, ollama' })
+  selectedAiProvider?: 'openai' | 'claude' | 'ollama';
+
+  @IsOptional()
+  @IsString()
+  openaiApiKey?: string;
+
+  @IsOptional()
+  @IsString()
+  claudeApiKey?: string;
 }

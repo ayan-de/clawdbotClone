@@ -35,17 +35,15 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       return true;
     }
 
+    // console.log('JwtAuthGuard.canActivate called for handler:', context.getHandler().name);
     return super.canActivate(context) as boolean;
   }
 
-  /**
-   * Handle authentication errors
-   */
-  handleRequest<TUser = any>(err: any, user: any): TUser {
+  handleRequest<TUser = any>(err: any, user: any, info: any): TUser {
     if (err || !user) {
+      console.error('JwtAuthGuard.handleRequest failed:', err, user, info);
       throw err || new UnauthorizedException('You are not authorized');
     }
-
     return user;
   }
 }

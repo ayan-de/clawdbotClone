@@ -5,6 +5,9 @@ import { ChatEvent, IncomingMessage } from './chat-adapter.interface';
 import { IMessageRouterService } from './interfaces/message-router.interface';
 import { MessageTransformer } from './message-transformer.interface';
 import { TelegramTransformer, DiscordTransformer, SlackTransformer } from './transformers';
+import { ISessionService } from '../session/interfaces/session.service.interface';
+import { UsersService } from '../users/users.service';
+import { User } from '../domain/entities/user.entity';
 
 /**
  * Message Router Service
@@ -19,6 +22,8 @@ export class MessageRouterService implements IMessageRouterService {
 
   constructor(
     private readonly adapterFactory: IAdapterFactoryService,
+    private readonly sessionService: ISessionService,
+    private readonly usersService: UsersService,
   ) {
     this.initializeTransformers();
   }
@@ -45,14 +50,56 @@ export class MessageRouterService implements IMessageRouterService {
    * Handle incoming message event
    */
   @OnEvent(ChatEvent.MESSAGE_RECEIVED)
-  handleIncomingMessage(message: IncomingMessage) {
+  async handleIncomingMessage(message: IncomingMessage) {
     this.logger.log(
       `Routed incoming message from ${message.userId} on ${message.platform}: ${message.content}`,
     );
-    // Here we can route to:
-    // 1. Command Executor Service
-    // 2. AI Agent Service
-    // 3. WebSocket Gateway
+
+    // Find user by telegram username (stateless - just lookup)
+    const user = await this.findUserByTelegram(message.username);
+
+    if (!user) {
+      this.logger.warn(`User not found for telegram username: ${message.username}`);
+      // Send "Please sign up at orbit.ayande.xyz" message
+      await this.sendToPlatform(
+        message.platform,
+        message.chatId || message.userId,
+        "Welcome! To use Orbit, please sign up at https://orbit.ayande.xyz/signup with your Telegram username.",
+      );
+      return;
+    }
+
+    // Check if user has active desktop session (real-time)
+    const activeSessions = await this.sessionService.getActiveSessionsByUserId(user.id);
+
+    if (!activeSessions || activeSessions.length === 0) {
+      await this.sendToPlatform(
+        message.platform,
+        message.chatId || message.userId,
+        "Your desktop is not connected. Start the TUI client to receive commands.",
+      );
+      return;
+    }
+
+    // TODO: Phase 2 - Route to AI service for command generation
+    // TODO: Phase 2 - Send commands to TUI via WebSocket
+
+    // For now, acknowledge receipt
+    await this.sendToPlatform(
+      message.platform,
+      message.chatId || message.userId,
+      `Received: "${message.content}"`,
+    );
+  }
+
+  /**
+   * Find user by Telegram username
+   */
+  private async findUserByTelegram(username?: string): Promise<User | null> {
+    if (!username) {
+      return null;
+    }
+    return (this.usersService as any).findEntityByTelegramUsername(username);
   }
 
   /**

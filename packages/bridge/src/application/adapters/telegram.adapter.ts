@@ -5,6 +5,8 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { BridgeLogger } from '../../logger';
 import { BaseChatAdapter } from './base-adapter';
 import { ChatEvent, IncomingMessage } from './chat-adapter.interface';
+import { ISessionService } from '../session/interfaces/session.service.interface';
+import { UsersService } from '../users/users.service';
 
 /**
  * Telegram Adapter
@@ -22,6 +24,8 @@ export class TelegramAdapter extends BaseChatAdapter {
     bridgeLogger: BridgeLogger,
     private readonly configService: ConfigService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly sessionService: ISessionService,
+    private readonly usersService: UsersService,
   ) {
     super(bridgeLogger);
     this.token = this.configService.get<string>('TELEGRAM_BOT_TOKEN', '');
@@ -79,6 +83,12 @@ export class TelegramAdapter extends BaseChatAdapter {
   private async handleIncomingMessage(msg: TelegramBot.Message): Promise<void> {
     if (!msg.text) return; // Ignore non-text messages for now
 
+    // Check if message is a command
+    if (msg.text.startsWith('/')) {
+      await this.handleCommand(msg);
+      return;
+    }
+
     const incomingMessage: IncomingMessage = {
       id: msg.message_id.toString(),
       platform: this.platform,
@@ -95,6 +105,77 @@ export class TelegramAdapter extends BaseChatAdapter {
     );
 
     this.eventEmitter.emit(ChatEvent.MESSAGE_RECEIVED, incomingMessage);
+  }
+
+  /**
+   * Handle bot commands
+   */
+  private async handleCommand(message: TelegramBot.Message): Promise<void> {
+    const command = message.text?.split(' ')[0];
+    const args = message.text?.split(' ').slice(1);
+
+    switch (command) {
+      case '/start':
+        await this.sendMessage(
+          message.chat.id.toString(),
+          'Welcome to Orbit! Sign up at https://orbit.ayande.xyz/signup with your Telegram username.',
+        );
+        break;
+
+      case '/help':
+        await this.sendMessage(
+          message.chat.id.toString(),
+          'Commands:\n/start - Start the bot and get signup link\n/help - Show this help message\n/status - Check your desktop connection status',
+        );
+        break;
+
+      case '/status':
+        // Check user's desktop connection status
+        const username = message.from?.username;
+        if (!username) {
+          await this.sendMessage(
+            message.chat.id.toString(),
+            'Please set a Telegram username to use this feature.',
+          );
+          return;
+        }
+
+        const user = await this.findUserByTelegram(username);
+        if (user) {
+          const sessions = await this.sessionService.getActiveSessionsByUserId(user.id);
+          if (sessions.length > 0) {
+            await this.sendMessage(
+              message.chat.id.toString(),
+              'Your desktop is connected and ready!',
+            );
+          } else {
+            await this.sendMessage(
+              message.chat.id.toString(),
+              'Your desktop is not connected. Start the TUI client.',
+            );
+          }
+        } else {
+          await this.sendMessage(
+            message.chat.id.toString(),
+            'Please sign up at https://orbit.ayande.xyz/signup first.',
+          );
+        }
+        break;
+
+      default:
+        await this.sendMessage(
+          message.chat.id.toString(),
+          `Unknown command: ${command}. Use /help to see available commands.`,
+        );
+        break;
+    }
+  }
+
+  /**
+   * Find user by Telegram username
+   */
+  private async findUserByTelegram(username: string) {
+    return (this.usersService as any).findEntityByTelegramUsername(username);
   }
 
   /**

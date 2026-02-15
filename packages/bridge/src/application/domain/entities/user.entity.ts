@@ -28,7 +28,7 @@ export class User extends BaseEntity {
   @Column({ type: 'varchar', length: 255, nullable: true })
   displayName?: string;
 
-  @Column({ type: 'varchar', length: 500, nullable: true })
+  @Column({ type: 'text', nullable: true })
   picture?: string;
 
   @Column({ type: 'boolean', default: true })
@@ -36,6 +36,23 @@ export class User extends BaseEntity {
 
   @Column({ type: 'timestamp with time zone', nullable: true })
   lastLoginAt?: Date;
+
+  // Telegram Integration
+  @Column({ type: 'varchar', length: 255, nullable: true, unique: true })
+  telegramUsername?: string;
+
+  @Column({ type: 'bigint', nullable: true })
+  telegramId?: number;
+
+  // AI Provider Settings
+  @Column({ type: 'enum', enum: ['openai', 'claude', 'ollama'], nullable: true })
+  selectedAiProvider?: 'openai' | 'claude' | 'ollama';
+
+  @Column({ type: 'text', nullable: true })
+  openaiApiKey?: string; // Encrypted
+
+  @Column({ type: 'text', nullable: true })
+  claudeApiKey?: string; // Encrypted
 
   // Relationships with OAuth providers will be added when we create OAuthProvider entity
   // @OneToMany(() => OAuthAccount, (account) => account.user)

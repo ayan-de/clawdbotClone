@@ -1,6 +1,9 @@
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { DataSource, DataSourceOptions } from 'typeorm';
+import { User } from '../../application/domain/entities/user.entity';
+import { OAuthAccount } from '../../application/domain/entities/oauth-account.entity';
+import { Session } from '../../application/domain/entities/session.entity';
 
 /**
  * Database Configuration
@@ -18,7 +21,7 @@ export class DatabaseConfig {
     return {
       type: 'postgres',
       url: this.getDatabaseUrl(configService),
-      entities: [__dirname + '/../**/*.entity{.ts,.js}'],
+      entities: [User, OAuthAccount, Session],
       synchronize: synchronize && !isProduction, // Never sync in production
       logging: !isProduction && configService.get<string>('LOG_LEVEL') === 'debug',
       ssl: this.getSSLOptions(isProduction, configService),

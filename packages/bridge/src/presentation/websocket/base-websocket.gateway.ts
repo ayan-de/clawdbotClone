@@ -34,6 +34,7 @@ export abstract class BaseWebSocketGateway
 
   constructor(protected readonly bridgeLogger: BridgeLogger) {
     this._logger = new Logger(this.constructor.name);
+    this.clients = new Map<string, Socket>();
   }
 
   protected get logger(): Logger {

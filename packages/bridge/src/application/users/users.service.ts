@@ -130,6 +130,31 @@ export class UsersService {
   }
 
   /**
+   * Find user by Telegram username
+   */
+  async findByTelegramUsername(telegramUsername: string): Promise<UserResponseDto | null> {
+    const userRepo = this.getUserRepository();
+
+    const user = await userRepo.findOne({
+      where: { telegramUsername },
+    });
+
+    if (!user) {
+      return null;
+    }
+
+    return this.toResponseDto(user);
+  }
+
+  /**
+   * Find user entity by Telegram username (internal use)
+   */
+  async findEntityByTelegramUsername(telegramUsername: string): Promise<User | null> {
+    const userRepo = this.getUserRepository();
+    return userRepo.findOne({ where: { telegramUsername } });
+  }
+
+  /**
    * Get all users (with pagination)
    */
   async findAll(
@@ -257,6 +282,9 @@ export class UsersService {
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       lastLoginAt: user.lastLoginAt,
+      telegramUsername: user.telegramUsername,
+      telegramId: user.telegramId,
+      selectedAiProvider: user.selectedAiProvider,
     };
   }
 }

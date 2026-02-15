@@ -24,7 +24,7 @@ import { User, OAuthAccount } from '../domain/entities';
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET', 'secret'),
         signOptions: {
-          expiresIn: configService.get<number>('JWT_EXPIRATION', 3600),
+          expiresIn: Number(configService.get<number>('JWT_EXPIRATION', 3600)),
         },
       }),
     }),
@@ -43,6 +43,7 @@ import { User, OAuthAccount } from '../domain/entities';
     JwtAuthGuard,
     OAuthAuthGuard,
     GoogleOAuthStrategy,
+    PassportModule,
   ],
 })
-export class AuthModule {}
+export class AuthModule { }

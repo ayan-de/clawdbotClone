@@ -4,6 +4,7 @@ import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards';
 import { GoogleOAuthStrategy } from './strategies/google-oauth.strategy';
+import { OAuthProfile } from './strategies/oauth-provider.interface';
 import { Public } from '../../common/decorators';
 
 /**
@@ -15,7 +16,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly googleStrategy: GoogleOAuthStrategy,
-  ) {}
+  ) { }
 
   /**
    * Google OAuth redirect
@@ -40,14 +41,15 @@ export class AuthController {
     @Req() req: any,
     @Res() res: Response,
   ) {
-    const profile = GoogleOAuthStrategy.extractProfile(req.user);
+    // req.user is already the OAuthProfile object returned by the strategy
+    const profile = req.user as OAuthProfile;
 
     // Find or create user
     const user = await this.authService.findOrCreateUser(
       'google',
       profile,
-      req.user?.accessToken,
-      req.user?.refreshToken,
+      (profile as any).accessToken,
+      (profile as any).refreshToken,
     );
 
     // Generate JWT token
@@ -57,8 +59,16 @@ export class AuthController {
     // In production, you might want to use a secure cookie instead
     const redirectUrl = this.authService['configService'].get<string>(
       'FRONTEND_URL',
-      'http://localhost:4200',
+      'http://localhost:3000',
     );
+
+    // Check if user has Telegram username set
+    // If not, redirect to signup page
+    if (!user.telegramUsername) {
+      return res.redirect(
+        `${redirectUrl}/signup?token=${accessToken}`,
+      );
+    }
 
     return res.redirect(
       `${redirectUrl}/auth/callback?token=${accessToken}`,

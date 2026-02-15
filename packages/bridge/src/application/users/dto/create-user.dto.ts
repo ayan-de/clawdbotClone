@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString, IsBoolean, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, IsBoolean, MaxLength, MinLength, IsEnum, IsNumber } from 'class-validator';
 
 /**
  * Create User DTO
@@ -31,4 +31,27 @@ export class CreateUserDto {
   @IsString()
   @MaxLength(500)
   picture?: string;
+
+  // Telegram Integration
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  telegramUsername?: string;
+
+  @IsOptional()
+  @IsNumber()
+  telegramId?: number;
+
+  // AI Provider Settings
+  @IsOptional()
+  @IsEnum(['openai', 'claude', 'ollama'], { message: 'Must be one of: openai, claude, ollama' })
+  selectedAiProvider?: 'openai' | 'claude' | 'ollama';
+
+  @IsOptional()
+  @IsString()
+  openaiApiKey?: string;
+
+  @IsOptional()
+  @IsString()
+  claudeApiKey?: string;
 }

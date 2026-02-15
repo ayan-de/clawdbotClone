@@ -66,9 +66,12 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <button className="text-xs border border-white/20 px-4 py-2 hover:bg-white hover:text-black transition-all uppercase tracking-tighter">
-              Login::Guest
-            </button>
+            <a
+              href="http://localhost:5000/auth/google"
+              className="text-xs border border-white/20 px-4 py-2 hover:bg-white hover:text-black transition-all uppercase tracking-tighter cursor-pointer"
+            >
+              Login::Google
+            </a>
           </div>
         </div>
       </nav>

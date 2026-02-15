@@ -22,4 +22,12 @@ export class UserResponseDto {
   updatedAt!: Date;
 
   lastLoginAt?: Date;
+
+  // Telegram Integration
+  telegramUsername?: string;
+
+  telegramId?: number;
+
+  // AI Provider Settings
+  selectedAiProvider?: 'openai' | 'claude' | 'ollama';
 }
