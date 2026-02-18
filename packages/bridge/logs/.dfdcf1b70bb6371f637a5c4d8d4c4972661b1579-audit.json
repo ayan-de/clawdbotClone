@@ -14,6 +14,11 @@
             "date": 1771180300224,
             "name": "logs/OrbitBridge-error-2026-02-16.log",
             "hash": "29a7e45de822cda59d13a053c04a36aa2f19db0f9f59cc00a2c2289a384795ec"
+        },
+        {
+            "date": 1771360767995,
+            "name": "logs/OrbitBridge-error-2026-02-18.log",
+            "hash": "7c203ce6c20e49eeb15fa7756e27cd515ad480de72e3ee75b7bdf7684dfaa54a"
         }
     ],
     "hashType": "sha256"

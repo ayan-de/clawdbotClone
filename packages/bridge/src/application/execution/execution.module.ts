@@ -1,7 +1,9 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
+import { HttpModule } from '@nestjs/axios';
 import { CommandOrchestratorService } from './command-orchestrator.service';
 import { UserOrchestrationService } from './user-orchestration.service';
 import { DesktopSelectorService } from './desktop-selector.service';
+import { AgentService } from './agent.service';
 import { WebSocketModule } from '../../presentation/websocket/websocket.module';
 import { AdaptersModule } from '../adapters/adapters.module';
 import { SessionModule } from '../session/session.module';
@@ -15,8 +17,9 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
  */
 @Module({
     imports: [
+        HttpModule,
         WebSocketModule,
-        AdaptersModule,
+        forwardRef(() => AdaptersModule),
         SessionModule,
         UsersModule,
         EventEmitterModule,
@@ -25,11 +28,13 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
         CommandOrchestratorService,
         UserOrchestrationService,
         DesktopSelectorService,
+        AgentService,
     ],
     exports: [
         CommandOrchestratorService,
         UserOrchestrationService,
         DesktopSelectorService,
+        AgentService,
     ],
 })
 export class ExecutionModule { }

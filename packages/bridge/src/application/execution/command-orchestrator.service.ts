@@ -6,6 +6,7 @@ import { ISessionService } from '../session/interfaces/session.service.interface
 import { UserOrchestrationService } from './user-orchestration.service';
 import { DesktopSelectorService } from './desktop-selector.service';
 import { ICommandExecutionService } from './interfaces/command-execution.interface';
+import { AgentService } from './agent.service';
 import { DesktopGateway } from '../../presentation/websocket/desktop.gateway';
 
 /**
@@ -25,6 +26,7 @@ export class CommandOrchestratorService implements ICommandExecutionService {
         private readonly sessionService: ISessionService,
         private readonly userOrchestration: UserOrchestrationService,
         private readonly desktopSelector: DesktopSelectorService,
+        private readonly agentService: AgentService,
     ) { }
 
     /**
@@ -118,6 +120,7 @@ export class CommandOrchestratorService implements ICommandExecutionService {
 
     /**
      * Execute a command on a specific session
+     * Routes through Agent service first for NLP translation
      */
     async executeCommand(
         sessionId: string,
@@ -137,6 +140,48 @@ export class CommandOrchestratorService implements ICommandExecutionService {
                 return false;
             }
 
+            // 1. Route through Agent for NLP translation
+            const userId = options?.userId || session.metadata?.platformUserId || 'unknown';
+            const agentResponse = await this.agentService.processMessage(
+                sessionId,
+                command,
+                userId,
+            );
+
+            this.logger.log(
+                `Agent response: intent=${agentResponse.intent}, command=${agentResponse.command}`,
+            );
+
+            // 2. Handle based on agent's intent classification
+            if (agentResponse.intent === 'question') {
+                // Direct answer from agent - send to platform
+                const answer = agentResponse.messages.join('\n');
+                await this.messageRouter.sendToPlatform(
+                    session.metadata?.platform || 'telegram',
+                    session.metadata?.platformUserId || userId,
+                    answer,
+                );
+                return true;
+            }
+
+            if (agentResponse.intent === 'command' && agentResponse.command) {
+                // Agent translated to shell command - execute it
+                await this.desktopGateway.sendCommand(session.id, agentResponse.command);
+
+                this.runningCommands.set(sessionId, true);
+
+                if (session.metadata?.platform && session.metadata?.platformUserId) {
+                    await this.messageRouter.sendToPlatform(
+                        session.metadata.platform,
+                        session.metadata.platformUserId,
+                        '⏳ Executing...',
+                    );
+                }
+                return true;
+            }
+
+            // Fallback: Execute as-is
+            this.logger.warn(`Unknown agent intent or no command extracted, executing as-is`);
             await this.desktopGateway.sendCommand(session.id, command);
 
             this.runningCommands.set(sessionId, true);

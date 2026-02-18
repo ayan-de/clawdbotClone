@@ -1,4 +1,4 @@
-import { Module, OnModuleInit, Logger, Inject } from '@nestjs/common';
+import { Module, OnModuleInit, Logger, Inject, forwardRef } from '@nestjs/common';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { BridgeLogger } from '../../logger';
 import { ConfigModule } from '../../config';
@@ -11,6 +11,7 @@ import { IMessageRouterService } from './interfaces/message-router.interface';
 import { SessionModule } from '../session/session.module';
 import { UsersModule } from '../users/users.module';
 import { WebSocketModule } from '../../presentation/websocket/websocket.module';
+import { ExecutionModule } from '../execution/execution.module';
 
 /**
  * Adapters Module
@@ -18,7 +19,14 @@ import { WebSocketModule } from '../../presentation/websocket/websocket.module';
  * Auto-initializes Telegram adapter on startup
  */
 @Module({
-  imports: [ConfigModule, EventEmitterModule.forRoot(), SessionModule, UsersModule, WebSocketModule],
+  imports: [
+    ConfigModule,
+    EventEmitterModule.forRoot(),
+    SessionModule,
+    UsersModule,
+    WebSocketModule,
+    forwardRef(() => ExecutionModule),
+  ],
   controllers: [WebhooksController],
   providers: [
     BridgeLogger,

@@ -113,4 +113,9 @@ export class EnvConfig {
   @IsInt()
   @IsOptional()
   RATE_LIMIT_MAX: number = 100; // 100 requests per TTL
+
+  // Orbit Agent API Config
+  @IsString()
+  @IsOptional()
+  AGENT_API_URL: string = 'http://localhost:8000'; // Python Agent API URL
 }

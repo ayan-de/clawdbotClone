@@ -1,4 +1,4 @@
-import { Injectable, Logger, Inject } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { IAdapterFactoryService } from './interfaces/adapter-factory.interface';
 import { ChatEvent, IncomingMessage } from './chat-adapter.interface';
@@ -9,6 +9,7 @@ import { ISessionService } from '../session/interfaces/session.service.interface
 import { UsersService } from '../users/users.service';
 import { User } from '../domain/entities/user.entity';
 import { DesktopGateway } from '../../presentation/websocket/desktop.gateway';
+import { CommandOrchestratorService } from '../execution/command-orchestrator.service';
 
 /**
  * Message Router Service
@@ -26,6 +27,8 @@ export class MessageRouterService implements IMessageRouterService {
     private readonly sessionService: ISessionService,
     private readonly usersService: UsersService,
     private readonly desktopGateway: DesktopGateway,
+    @Inject(forwardRef(() => CommandOrchestratorService))
+    private readonly commandOrchestrator: CommandOrchestratorService,
   ) {
     this.initializeTransformers();
   }
@@ -107,14 +110,16 @@ export class MessageRouterService implements IMessageRouterService {
       username: message.username,
     });
 
-    // Route command to TUI via WebSocket
+    // Route command to TUI via Command Orchestrator (which routes through Agent)
     const sessionId = activeSessions[0].id; // Use first active session
     const command = message.content;
 
-    this.logger.log(`Routing command to desktop session ${sessionId}: ${command}`);
+    this.logger.log(`Routing command via orchestrator (session ${sessionId}): ${command}`);
 
     try {
-      await this.desktopGateway.sendCommand(sessionId, command);
+      await this.commandOrchestrator.executeCommand(sessionId, command, {
+        userId: message.userId,
+      });
 
       // Optionally acknowledge receipt if needed, but streaming output is better
       // await this.sendToPlatform(
@@ -155,7 +160,7 @@ export class MessageRouterService implements IMessageRouterService {
     // Send to Telegram if user has telegramId
     if (user.telegramId) {
       try {
-        await this.sendToPlatform('telegram', user.telegramId.toString(), output);
+        await this.sendToPlatform( 'telegram', user.telegramId.toString(), output);
       } catch (error) {
         this.logger.error(`Failed to send output to Telegram: ${error}`);
       }
@@ -178,12 +183,12 @@ export class MessageRouterService implements IMessageRouterService {
 
     // Send final result output if available
     if (result?.stdout) {
-      await this.sendToPlatform('telegram', user.telegramId.toString(), result.stdout);
+      await this.sendToPlatform( 'telegram', user.telegramId.toString(), result.stdout);
     }
 
     if (!result?.success) {
       const errorMsg = result?.stderr || result?.error || 'Unknown error';
-      await this.sendToPlatform('telegram', user.telegramId.toString(), `❌ Command failed: ${errorMsg}`);
+      await this.sendToPlatform( 'telegram', user.telegramId.toString(), `❌ Command failed: ${errorMsg}`);
     }
   }
 
@@ -199,7 +204,7 @@ export class MessageRouterService implements IMessageRouterService {
     const user = await this.usersService.findEntityById(userId);
     if (!user || !user.telegramId) return;
 
-    await this.sendToPlatform('telegram', user.telegramId.toString(), `❌ Error: ${error}`);
+    await this.sendToPlatform( 'telegram', user.telegramId.toString(), `❌ Error: ${error}`);
   }
 
   /**
@@ -223,7 +228,7 @@ export class MessageRouterService implements IMessageRouterService {
     const name = desktopName || 'your desktop';
     try {
       await this.sendToPlatform(
-        'telegram',
+         'telegram',
         user.telegramId.toString(),
         `✅ Connection to Orbit is established!\n🖥️ Desktop: ${name}\n\nYou can now send commands here and they will execute on your desktop.`,
       );
@@ -311,7 +316,7 @@ export class MessageRouterService implements IMessageRouterService {
     }
 
     // Default to Telegram for backward compatibility
-    return ['telegram', userIdWithPlatform];
+    return [ 'telegram', userIdWithPlatform];
   }
 
   /**
