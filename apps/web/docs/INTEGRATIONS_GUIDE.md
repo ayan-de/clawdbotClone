@@ -13,13 +13,14 @@ app/
 ├── components/
 │   ├── ui/                    # Reusable base components
 │   │   ├── card.tsx           # Card, CardHeader, CardTitle, CardContent, CardFooter
-│   │   └── button.tsx         # Button with variants (default, outline, ghost, connected, disconnected)
+│   │   ├── button.tsx         # Button with variants (default, outline, ghost, connected, disconnected)
+│   │   └── search-input.tsx   # Search input with TUI styling
 │   └── integrations/          # Integration-specific cards
 │       ├── TelegramCard.tsx   # Telegram integration card
 │       ├── EmailCard.tsx      # Email integration card (placeholder)
 │       └── index.ts           # Barrel export
 ├── dashboard/
-│   └── page.tsx               # Dashboard page with cards grid
+│   └── page.tsx               # Dashboard page with search bar and cards grid
 └── types/
     └── integrations.ts        # Integration types
 ```
@@ -129,6 +130,7 @@ Update `components/integrations/index.ts`:
 ```typescript
 export * from "./TelegramCard";
 export * from "./EmailCard";
+export * from "./SearchCard";
 export * from "./DiscordCard";  // Add this
 ```
 
@@ -191,6 +193,58 @@ Sizes:
 - `default` - Default (px-6 py-3)
 - `lg` - Large (px-8 py-4)
 
+### SearchInput Component
+
+Search bar with TUI styling and search icon:
+
+```tsx
+<SearchInput
+  placeholder="Search integrations..."
+  onSearch={(query) => console.log(query)}
+  className="w-full"
+/>
+```
+
+### Adding to the Dashboard Integrations Array
+
+To make your new integration searchable, add it to the `integrations` array in `dashboard/page.tsx`:
+
+```typescript
+const integrations = [
+  {
+    id: "telegram",
+    name: "Telegram",
+    component: (
+      <TelegramCard
+        key="telegram"
+        isConnected={!!user.telegramUsername}
+        username={user.telegramUsername}
+        onConnect={handleConnectTelegram}
+        onDisconnect={handleDisconnectTelegram}
+        onAuthorizeDesktop={generateDesktopToken}
+        loading={generatingToken}
+      />
+    ),
+  },
+  {
+    id: "discord",
+    name: "Discord",
+    component: (
+      <DiscordCard
+        key="discord"
+        isConnected={!!user.discordUsername}
+        username={user.discordUsername}
+        onConnect={handleConnectDiscord}
+        onDisconnect={handleDisconnectDiscord}
+        loading={discordConnecting}
+      />
+    ),
+  },
+];
+```
+
+The dashboard automatically filters integrations based on the `name` field when users type in the search bar.
+
 ## State Management
 
 Each integration card receives props for:
@@ -206,6 +260,7 @@ Each integration card receives props for:
 - **Brand Colors**: Each integration should use its brand color for visual identity:
   - Telegram: `#0088cc` (blue)
   - Email/Gmail: `#EA4335` (red)
+  - Search: `#4285F4` (Google blue)
   - Discord: `#5865F2` (blurple)
   - Slack: `#4A154B` (purple)
 - **Color Application**:

@@ -7,6 +7,7 @@ import { API_URL } from "../config";
 import { TelegramCard } from "../components/integrations/TelegramCard";
 import { EmailCard } from "../components/integrations/EmailCard";
 import { Button } from "../components/ui/button";
+import { SearchInput } from "../components/ui/search-input";
 
 type ApiResponse = {
   id: string;
@@ -178,6 +179,9 @@ function DashboardContent() {
     return date.toLocaleString();
   };
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+
   return (
     <div className="min-h-screen selection:bg-white selection:text-black font-mono overflow-hidden relative">
       <div className="starfield">
@@ -290,18 +294,57 @@ function DashboardContent() {
               </div>
             </div>
 
+            {/* Search Bar */}
+            <div className="max-w-xl mx-auto mb-12">
+              <SearchInput
+                placeholder="Search integrations..."
+                onSearch={setSearchQuery}
+                className="w-full"
+              />
+            </div>
+
             {/* Integration Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <TelegramCard
-                isConnected={!!user.telegramUsername}
-                username={user.telegramUsername}
-                onConnect={handleConnectTelegram}
-                onDisconnect={handleDisconnectTelegram}
-                onAuthorizeDesktop={generateDesktopToken}
-                loading={generatingToken}
-              />
+              {(() => {
+                // Available integrations data - defined here to ensure user is available
+                const integrations = [
+                  {
+                    id: "telegram",
+                    name: "Telegram",
+                    component: (
+                      <TelegramCard
+                        key="telegram"
+                        isConnected={!!user.telegramUsername}
+                        username={user.telegramUsername}
+                        onConnect={handleConnectTelegram}
+                        onDisconnect={handleDisconnectTelegram}
+                        onAuthorizeDesktop={generateDesktopToken}
+                        loading={generatingToken}
+                      />
+                    ),
+                  },
+                  {
+                    id: "email",
+                    name: "Email",
+                    component: <EmailCard key="email" />,
+                  },
+                ];
 
-              <EmailCard />
+                // Filter integrations based on search query
+                const filteredIntegrations = integrations.filter((integration) =>
+                  integration.name.toLowerCase().includes(searchQuery.toLowerCase())
+                );
+
+                return filteredIntegrations.length > 0 ? (
+                  filteredIntegrations.map((integration) => integration.component)
+                ) : (
+                  <div className="col-span-1 md:col-span-2 lg:col-span-3 text-center py-12">
+                    <p className="text-white/40 text-sm uppercase tracking-widest">
+                      [ No integrations found matching "{searchQuery}" ]
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         ) : null}
