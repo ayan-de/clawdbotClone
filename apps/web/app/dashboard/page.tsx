@@ -295,12 +295,19 @@ function DashboardContent() {
             </div>
 
             {/* Search Bar */}
-            <div className="max-w-xl mx-auto mb-12">
-              <SearchInput
-                placeholder="Search integrations..."
-                onSearch={setSearchQuery}
-                className="w-full"
-              />
+            <div className="max-w-4xl mx-auto mb-12">
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <SearchInput
+                    placeholder="Search integrations..."
+                    onSearch={setSearchQuery}
+                    className="w-full"
+                  />
+                </div>
+                <Button variant="default" className="cursor-pointer">
+                  Add Integration
+                </Button>
+              </div>
             </div>
 
             {/* Integration Cards Grid */}
