@@ -2,8 +2,8 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Header from "../components/Header";
 import OrbitSystem from "../components/OrbitSystem";
-import { API_URL } from "../config";
 
 type ApiResponse = {
   id: string;
@@ -101,21 +101,8 @@ function SignupContent() {
       {/* Planetary System Background */}
       <OrbitSystem />
 
-      {/* TUI Navigation */}
-      <nav className="border-b-2 border-white/20 px-6 py-4 backdrop-blur-md relative z-20">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <span className="font-bold text-white tracking-[0.2em] tui-glow">
-              [ ORBIT ]
-            </span>
-          </div>
-          <div className="flex items-center gap-4">
-            <button className="text-xs border border-white/20 px-4 py-2 hover:bg-white hover:text-black transition-all uppercase tracking-tighter">
-              Login::Guest
-            </button>
-          </div>
-        </div>
-      </nav>
+      {/* Header */}
+      <Header />
 
       <main className="relative z-20 flex flex-col items-center justify-center px-4 py-20 max-w-2xl mx-auto min-h-[80vh]">
         {/* Signup Form Container */}

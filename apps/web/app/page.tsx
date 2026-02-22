@@ -1,18 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 
+import Header from "./components/Header";
 import OrbitSystem from "./components/OrbitSystem";
-import { API_URL } from "./config";
 
 export default function Home() {
-  const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [asciiLogo, setAsciiLogo] = useState("");
   const command = "curl -fsSL https://orbit.ayande.xyz/install.sh | bash";
   const [stars, setStars] = useState<{ id: number; top: string; left: string; size: string; duration: string }[]>([]);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
     // Fetch logo from public/logo.txt
@@ -28,10 +25,6 @@ export default function Home() {
       duration: `${Math.random() * 3 + 2}s`,
     }));
     setStars(newStars);
-
-    // Check if user is logged in
-    const token = localStorage.getItem("orbit_token");
-    setIsLoggedIn(!!token);
   }, []);
 
   const handleCopy = () => {
@@ -62,36 +55,8 @@ export default function Home() {
       {/* Planetary System Background */}
       <OrbitSystem />
 
-      {/* TUI Navigation */}
-      <nav className="border-b-2 border-white/20 px-6 py-4 backdrop-blur-md relative z-20">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <span className="font-bold text-white tracking-[0.2em] tui-glow">[ ORBIT ]</span>
-            <div className="hidden md:flex items-center gap-6 text-xs uppercase tracking-widest text-white/50">
-              <a href="#" className="hover:text-white transition-colors">Mission</a>
-              <a href="#" className="hover:text-white transition-colors">Nodes</a>
-              <a href="#" className="hover:text-white transition-colors">Archive</a>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            {isLoggedIn ? (
-              <button
-                onClick={() => router.push("/dashboard")}
-                className="text-xs border border-white/20 px-4 py-2 hover:bg-white hover:text-black transition-all uppercase tracking-tighter cursor-pointer"
-              >
-                Dashboard
-              </button>
-            ) : (
-              <a
-                href={`${API_URL}/auth/google`}
-                className="text-xs border border-white/20 px-4 py-2 hover:bg-white hover:text-black transition-all uppercase tracking-tighter cursor-pointer"
-              >
-                Login::Google
-              </a>
-            )}
-          </div>
-        </div>
-      </nav>
+      {/* Header */}
+      <Header />
 
       <main className="relative z-20 flex flex-col items-center justify-center px-4 pt-8 pb-32 max-w-5xl mx-auto min-h-[90vh]">
 

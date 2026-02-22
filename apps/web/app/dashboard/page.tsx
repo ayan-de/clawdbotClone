@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Header from "../components/Header";
 import OrbitSystem from "../components/OrbitSystem";
 import { API_URL } from "../config";
 import { TelegramCard } from "../components/integrations/TelegramCard";
@@ -209,31 +210,12 @@ function DashboardContent() {
       {/* Planetary System Background */}
       <OrbitSystem />
 
-      {/* TUI Navigation */}
-      <nav className="border-b-2 border-white/20 px-6 py-4 backdrop-blur-md relative z-20">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <span className="font-bold text-white tracking-[0.2em] tui-glow">
-              [ ORBIT ]
-            </span>
-            <div className="hidden md:flex items-center gap-6 text-xs uppercase tracking-widest text-white/50">
-              <a href="#" className="hover:text-white transition-colors">Mission</a>
-              <a href="#" className="hover:text-white transition-colors">Nodes</a>
-              <a href="#" className="hover:text-white transition-colors">Archive</a>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            {user && (
-              <span className="text-xs text-white/60">
-                {user.displayName || user.email}
-              </span>
-            )}
-            <Button variant="outline" size="sm" onClick={handleLogout}>
-              Logout
-            </Button>
-          </div>
-        </div>
-      </nav>
+      {/* Header */}
+      <Header
+        showUser={!!user}
+        userName={user?.displayName || user?.email}
+        onLogout={handleLogout}
+      />
 
       <main className="relative z-20 px-4 py-20 max-w-7xl mx-auto">
         {loading ? (
