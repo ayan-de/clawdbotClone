@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Header from "../components/Header";
 import OrbitSystem from "../components/OrbitSystem";
+import { API_URL } from "../config";
 
 type ApiResponse = {
   id: string;
