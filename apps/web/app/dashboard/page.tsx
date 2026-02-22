@@ -91,6 +91,11 @@ function DashboardContent() {
 
       // Store token in localStorage
       localStorage.setItem("orbit_token", authToken);
+
+      // Clear token from URL for security (one-time use)
+      const url = new URL(window.location.href);
+      url.searchParams.delete("token");
+      window.history.replaceState({}, "", url.toString());
     } catch (err: any) {
       setError(err.message || "Failed to authenticate");
       setLoading(false);
