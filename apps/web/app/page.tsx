@@ -1,15 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 import OrbitSystem from "./components/OrbitSystem";
 import { API_URL } from "./config";
 
 export default function Home() {
+  const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [asciiLogo, setAsciiLogo] = useState("");
   const command = "curl -fsSL https://orbit.ayande.xyz/install.sh | bash";
   const [stars, setStars] = useState<{ id: number; top: string; left: string; size: string; duration: string }[]>([]);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
     // Fetch logo from public/logo.txt
@@ -25,6 +28,10 @@ export default function Home() {
       duration: `${Math.random() * 3 + 2}s`,
     }));
     setStars(newStars);
+
+    // Check if user is logged in
+    const token = localStorage.getItem("orbit_token");
+    setIsLoggedIn(!!token);
   }, []);
 
   const handleCopy = () => {
@@ -51,7 +58,7 @@ export default function Home() {
         ))}
       </div>
       <div className="scanlines" />
-      
+
       {/* Planetary System Background */}
       <OrbitSystem />
 
@@ -67,18 +74,27 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <a
-              href={`${API_URL}/auth/google`}
-              className="text-xs border border-white/20 px-4 py-2 hover:bg-white hover:text-black transition-all uppercase tracking-tighter cursor-pointer"
-            >
-              Login::Google
-            </a>
+            {isLoggedIn ? (
+              <button
+                onClick={() => router.push("/dashboard")}
+                className="text-xs border border-white/20 px-4 py-2 hover:bg-white hover:text-black transition-all uppercase tracking-tighter cursor-pointer"
+              >
+                Dashboard
+              </button>
+            ) : (
+              <a
+                href={`${API_URL}/auth/google`}
+                className="text-xs border border-white/20 px-4 py-2 hover:bg-white hover:text-black transition-all uppercase tracking-tighter cursor-pointer"
+              >
+                Login::Google
+              </a>
+            )}
           </div>
         </div>
       </nav>
 
       <main className="relative z-20 flex flex-col items-center justify-center px-4 pt-8 pb-32 max-w-5xl mx-auto min-h-[90vh]">
-        
+
         {/* ASCII Logo */}
         <div className="mb-8 scale-75 md:scale-100 opacity-80 hover:opacity-100 transition-opacity">
           <pre className="text-[0.5rem] sm:text-[0.6rem] md:text-xs text-white tui-glow animate-pulse leading-[1] tracking-normal whitespace-pre">
@@ -89,10 +105,10 @@ export default function Home() {
         {/* Hero TUI */}
         <div className="text-center mb-16 space-y-6 relative">
           <div className="inline-block border border-white/20 px-3 py-1 text-[10px] uppercase tracking-[0.3em] bg-black/50 backdrop-blur-sm mb-4">
-             System Status: Synchronizing...
+            System Status: Synchronizing...
           </div>
           <h1 className="text-3xl md:text-5xl font-bold tracking-tighter uppercase mb-4 text-transparent bg-clip-text bg-gradient-to-b from-white to-white/50">
-            Unified the gravity <br/> of your engineering stack.
+            Unified the gravity <br /> of your engineering stack.
           </h1>
           <p className="text-sm md:text-base text-white/60 max-w-xl mx-auto leading-relaxed border-l-2 border-white/20 pl-6 text-left italic bg-black/30 backdrop-blur-sm p-4 rounded-r-lg">
             "Orbit provides the infrastructure to build, scale, and deploy autonomous systems across the terminal galaxy. Zero friction. Total control."
@@ -125,7 +141,7 @@ export default function Home() {
               </div>
             </div>
 
-            <button 
+            <button
               onClick={handleCopy}
               className="w-full md:w-auto px-6 py-3 bg-white text-black text-xs font-bold uppercase tracking-widest hover:bg-white/80 transition-all active:scale-95"
             >
