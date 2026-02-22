@@ -104,19 +104,30 @@ export const MAX_OUTPUT_SIZE = 10 * 1024 * 1024; // 10MB
 /**
  * Validate a command against security rules
  */
-export function validateCommand(command: string, currentDir?: string): ValidationResult {
-  logger.debug(`Validating command: ${command}`);
+export function validateCommand(command: string, currentDir?: string, trusted: boolean = false): ValidationResult {
+  logger.debug(`Validating command: ${command} (trusted: ${trusted})`);
 
-  // Check for shell injection characters
-  if (INJECTION_CHARS.test(command)) {
-    logger.warn(`Command blocked (injection chars): ${command}`);
-    return {
-      valid: false,
-      error: 'Command contains forbidden characters: ; & | ` $ ( ) < >',
+  // Skip injection character check for trusted internal commands (from Python agent tools)
+  if (!trusted) {
+    // Check for shell injection characters
+    const debugInfo = {
+      command,
+      commandLength: command.length,
+      commandBytes: Array.from(command).map(c => `${c} (${c.charCodeAt(0)})`).join(' '),
+      testResult: INJECTION_CHARS.test(command)
     };
+    logger.debug(`Injection check debug: ${JSON.stringify(debugInfo)}`);
+
+    if (INJECTION_CHARS.test(command)) {
+      logger.warn(`Command blocked (injection chars): ${command}`);
+      return {
+        valid: false,
+        error: 'Command contains forbidden characters: ; & | ` $ ( ) < >',
+      };
+    }
   }
 
-  // Check for dangerous patterns
+  // Check for dangerous patterns (always check these)
   for (const pattern of DANGEROUS_PATTERNS) {
     if (pattern.test(command)) {
       logger.warn(`Command blocked (dangerous pattern): ${command}`);
@@ -130,31 +141,34 @@ export function validateCommand(command: string, currentDir?: string): Validatio
   // Extract base command (first word)
   const baseCommand = command.trim().split(/\s+/)[0];
 
-  // Check if command is in whitelist
-  if (!SAFE_COMMANDS.has(baseCommand)) {
-    logger.warn(`Command blocked (not in whitelist): ${baseCommand}`);
-    return {
-      valid: false,
-      error: `Command not allowed: ${baseCommand}`,
-    };
-  }
+  // Skip whitelist check for trusted internal commands
+  if (!trusted) {
+    // Check if command is in whitelist
+    if (!SAFE_COMMANDS.has(baseCommand)) {
+      logger.warn(`Command blocked (not in whitelist): ${baseCommand}`);
+      return {
+        valid: false,
+        error: `Command not allowed: ${baseCommand}`,
+      };
+    }
 
-  // Check for sudo (even though sudo itself might not be in whitelist)
-  if (command.includes('sudo ')) {
-    logger.warn(`Command blocked (sudo): ${command}`);
-    return {
-      valid: false,
-      error: 'Sudo is not allowed',
-    };
-  }
+    // Check for sudo (even though sudo itself might not be in whitelist)
+    if (command.includes('sudo ')) {
+      logger.warn(`Command blocked (sudo): ${command}`);
+      return {
+        valid: false,
+        error: 'Sudo is not allowed',
+      };
+    }
 
-  // Check for unsafe rm patterns
-  if (baseCommand === 'rm' && command.includes('-rf /')) {
-    logger.warn(`Command blocked (rm -rf /): ${command}`);
-    return {
-      valid: false,
-      error: 'Cannot use rm -rf / (entire filesystem)',
-    };
+    // Check for unsafe rm patterns
+    if (baseCommand === 'rm' && command.includes('-rf /')) {
+      logger.warn(`Command blocked (rm -rf /): ${command}`);
+      return {
+        valid: false,
+        error: 'Cannot use rm -rf / (entire filesystem)',
+      };
+    }
   }
 
   // Validate paths in command
@@ -291,9 +305,23 @@ export function getSafeWorkingDir(overrideDir?: string): string {
  * Returns command name and arguments
  */
 export function parseCommand(command: string): { name: string; args: string[] } {
-  const parts = command.trim().split(/\s+/);
+  // Regex matches substrings wrapped in single quotes, double quotes, or space-delimited text
+  // Supports escaped quotes \" and \' to prevent shatter from string serialization
+  const matches = command.trim().match(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^\s]+/g) || [];
+
+  // Clean off the surrounding quotes from the arguments and unescape inner quotes
+  const parts = matches.map(part => {
+    if (part.startsWith('"') && part.endsWith('"')) {
+      return part.slice(1, -1).replace(/\\"/g, '"');
+    }
+    if (part.startsWith("'") && part.endsWith("'")) {
+      return part.slice(1, -1).replace(/\\'/g, "'");
+    }
+    return part;
+  });
+
   return {
-    name: parts[0],
+    name: parts[0] || "",
     args: parts.slice(1),
   };
 }

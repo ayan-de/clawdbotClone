@@ -153,8 +153,8 @@ export class CommandOrchestratorService implements ICommandExecutionService {
             );
 
             // 2. Handle based on agent's intent classification
-            if (agentResponse.intent === 'question') {
-                // Direct answer from agent - send to platform
+            if (agentResponse.intent === 'question' || agentResponse.intent === 'workflow' || agentResponse.intent === 'confirmation') {
+                // Direct answer/summary from agent - send to platform
                 const answer = agentResponse.messages.join('\n');
                 await this.messageRouter.sendToPlatform(
                     session.metadata?.platform || 'telegram',

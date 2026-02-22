@@ -260,11 +260,11 @@ export class DesktopClient {
    */
   private async handleCommandRequest(data: any): Promise<void> {
     // Bridge sends data directly, not wrapped in a 'data' property
-    const { command, requestId, sessionId } = data || {};
+    const { command, requestId, sessionId, trusted } = data || {};
     // Use sessionId from data, or fallback to stored sessionId
     const sid = sessionId || this.sessionId;
 
-    logger.info(`Received command: ${command} (session: ${sid}, requestId: ${requestId})`);
+    logger.info(`Received command: ${command} (session: ${sid}, requestId: ${requestId}, trusted: ${trusted})`);
 
     try {
       // Execute command with streaming output
@@ -276,6 +276,7 @@ export class DesktopClient {
         (progress: { stdout?: string; stderr?: string }) => {
           this.sendCommandProgress(sid, requestId, progress);
         },
+        trusted === true,  // Pass trusted flag
       );
 
       // Send completion message

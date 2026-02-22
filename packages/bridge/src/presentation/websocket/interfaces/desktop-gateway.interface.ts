@@ -7,7 +7,7 @@ export abstract class IDesktopGateway {
     /**
      * Send a command to a specific desktop session
      */
-    abstract sendCommand(sessionId: string, command: string, requestId?: string): Promise<void>;
+    abstract sendCommand(sessionId: string, command: string, requestId?: string, trusted?: boolean): Promise<void>;
 
     /**
      * Get connected desktops for a user

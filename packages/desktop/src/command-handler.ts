@@ -41,11 +41,12 @@ export class CommandHandler {
     command: string,
     onOutput?: (output: string) => void,
     onProgress?: (progress: { stdout?: string; stderr?: string }) => void,
+    trusted: boolean = false,
   ): Promise<ExecutedCommand> {
-    logger.debug(`Executing command: ${command}`);
+    logger.debug(`Executing command: ${command} (trusted: ${trusted})`);
 
     // Validate command first
-    const validation: ValidationResult = validateCommand(command, this.workingDir);
+    const validation: ValidationResult = validateCommand(command, this.workingDir, trusted);
 
     if (!validation.valid) {
       const errorResult: CommandResult = {

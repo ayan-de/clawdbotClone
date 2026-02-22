@@ -330,8 +330,8 @@ export class DesktopGateway extends BaseWebSocketGateway implements OnGatewayIni
    * Send command to Desktop TUI
    * Called by MessageRouterService when user sends command via Telegram
    */
-  async sendCommand(sessionId: string, command: string, requestId?: string): Promise<void> {
-    this.logger.log(`Sending command to session: ${sessionId}, command: ${command}`);
+  async sendCommand(sessionId: string, command: string, requestId?: string, trusted: boolean = false): Promise<void> {
+    this.logger.log(`Sending command to session: ${sessionId}, command: ${command}, trusted: ${trusted}`);
 
     const socketId = this.sessionToSocket.get(sessionId);
 
@@ -346,6 +346,7 @@ export class DesktopGateway extends BaseWebSocketGateway implements OnGatewayIni
       sessionId,
       requestId: requestId || `${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
       command,
+      trusted,
       timestamp: Date.now(),
     });
   }
@@ -392,5 +393,35 @@ export class DesktopGateway extends BaseWebSocketGateway implements OnGatewayIni
         }
       }
     }
+  }
+
+  /**
+   * Get the first available session ID
+   * Used by REST API command execution when no specific session is provided
+   *
+   * @returns First available session ID or null
+   */
+  getFirstAvailableSession(): string | null {
+    const sessionIds = Array.from(this.sessionToSocket.keys());
+    return sessionIds.length > 0 ? sessionIds[0] : null;
+  }
+
+  /**
+   * Get all available session IDs
+   *
+   * @returns Array of all active session IDs
+   */
+  getAllSessionIds(): string[] {
+    return Array.from(this.sessionToSocket.keys());
+  }
+
+  /**
+   * Check if a session is connected
+   *
+   * @param sessionId Session ID to check
+   * @returns True if session is connected
+   */
+  isSessionConnected(sessionId: string): boolean {
+    return this.sessionToSocket.has(sessionId);
   }
 }

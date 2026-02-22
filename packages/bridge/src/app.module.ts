@@ -9,6 +9,7 @@ import { DesktopTokensModule } from './application/desktop-tokens/desktop-tokens
 import { WebSocketModule } from './presentation/websocket';
 import { AdaptersModule } from './application/adapters';
 import { ExecutionModule } from './application/execution/execution.module';
+import { CommandsModule } from './presentation/commands.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './application/auth/guards';
 import { AppController } from './app.controller';
@@ -40,6 +41,7 @@ import { AppController } from './app.controller';
     // Presentation Layer
     WebSocketModule,
     AdaptersModule,
+    CommandsModule,
 
     // Domain Layer is shared via @orbit/common package
   ],
