@@ -63,7 +63,7 @@ export class AuthController {
     );
 
     // Check if user has Telegram username set
-    // If not, redirect to signup page
+    // If not, redirect to signup page, otherwise to dashboard
     if (!user.telegramUsername) {
       return res.redirect(
         `${redirectUrl}/signup?token=${accessToken}`,
@@ -71,7 +71,7 @@ export class AuthController {
     }
 
     return res.redirect(
-      `${redirectUrl}/auth/callback?token=${accessToken}`,
+      `${redirectUrl}/dashboard?token=${accessToken}`,
     );
   }
 

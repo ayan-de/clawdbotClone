@@ -70,8 +70,8 @@ function SignupContent() {
 
       const data: ApiResponse = await response.json();
 
-      // Redirect to dashboard/home with token
-      router.push(`/auth/callback?token=${token}`);
+      // Redirect to dashboard with token
+      router.push(`/dashboard?token=${token}`);
     } catch (err: any) {
       setError(err.message || "Failed to update profile. Please try again.");
     } finally {
