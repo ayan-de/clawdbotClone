@@ -49,13 +49,10 @@ export class UpdateUserDto {
 
   // Telegram Integration
   @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  telegramUsername?: string;
+  telegramUsername?: string | null;
 
   @IsOptional()
-  @IsNumber()
-  telegramId?: number;
+  telegramId?: number | null;
 
   // AI Provider Settings
   @IsOptional()
