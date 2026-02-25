@@ -30,4 +30,7 @@ export class UserResponseDto {
 
   // AI Provider Settings
   selectedAiProvider?: 'openai' | 'claude' | 'ollama';
+
+  // Email Integration
+  emailAddress?: string;
 }

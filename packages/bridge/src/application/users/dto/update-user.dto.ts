@@ -66,4 +66,10 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   claudeApiKey?: string;
+
+  // Email Integration
+  @IsOptional()
+  @IsEmail({}, { message: 'Must be a valid email address' })
+  @MaxLength(255)
+  emailAddress?: string | null;
 }

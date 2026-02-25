@@ -4,6 +4,7 @@ import { Strategy } from 'passport-google-oauth20';
 import { ConfigService } from '@nestjs/config';
 import { IOAuthProvider, OAuthProfile } from './oauth-provider.interface';
 import { HttpService } from '@nestjs/axios';
+import { OAuth2Client } from 'google-auth-library';
 
 /**
  * Gmail OAuth Strategy
@@ -19,26 +20,38 @@ import { HttpService } from '@nestjs/axios';
 @Injectable()
 export class GmailOAuthStrategy extends PassportStrategy(Strategy, 'gmail') implements IOAuthProvider {
   readonly provider = 'gmail';
+  private readonly clientID: string;
+  private readonly clientSecret: string;
+  private readonly callbackURL: string;
+  private readonly agentAPIUrl: string;
 
   constructor(
     private readonly configService: ConfigService,
     private readonly httpService: HttpService,
   ) {
-    const clientID = configService.get<string>('GMAIL_CLIENT_ID', '');
+    // Get config values first
+    const clientId = configService.get<string>('GMAIL_CLIENT_ID', '');
     const clientSecret = configService.get<string>('GMAIL_CLIENT_SECRET', '');
-    const callbackURL = configService.get<string>('GMAIL_REDIRECT_URI', '');
-    const agentAPIUrl = configService.get<string>('AGENT_API_URL', '');
+    const callbackUrl = configService.get<string>('GMAIL_REDIRECT_URI', '');
+    const agentApiUrl = configService.get<string>('AGENT_API_URL', 'http://localhost:8000');
 
-    if (!clientID) {
+    if (!clientId) {
       console.warn('⚠️  GMAIL_CLIENT_ID is missing! Gmail OAuth will not work.');
     }
 
+    // Call super() first with config values
     super({
-      clientID: clientID || 'missing_client_id', // Prevent crash on startup
+      clientID: clientId || 'missing_client_id', // Prevent crash on startup
       clientSecret: clientSecret || 'missing_client_secret',
-      callbackURL: callbackURL || 'http://localhost:5000/auth/gmail/callback',
+      callbackURL: callbackUrl || 'http://localhost:5000/auth/gmail/callback',
       scope: ['https://www.googleapis.com/auth/gmail.send'], // Gmail-specific scope
     });
+
+    // Now can use this
+    this.clientID = clientId || 'missing_client_id';
+    this.clientSecret = clientSecret || 'missing_client_secret';
+    this.callbackURL = callbackUrl || 'http://localhost:5000/auth/gmail/callback';
+    this.agentAPIUrl = agentApiUrl;
   }
 
   /**
@@ -48,9 +61,9 @@ export class GmailOAuthStrategy extends PassportStrategy(Strategy, 'gmail') impl
    */
   getOAuthUrl(userId: string): string {
     const oauth2Client = new OAuth2Client({
-      clientId: this.clientID || 'missing_client_id',
-      clientSecret: this.clientSecret || 'missing_client_secret',
-      redirectUri: this.callbackURL || 'http://localhost:5000/auth/gmail/callback',
+      clientId: this.clientID,
+      clientSecret: this.clientSecret,
+      redirectUri: this.callbackURL,
     });
 
     return oauth2Client.generateAuthUrl({
@@ -71,25 +84,25 @@ export class GmailOAuthStrategy extends PassportStrategy(Strategy, 'gmail') impl
     refreshToken: string,
     profile: any,
     done: (error: any, user?: any) => void,
-  ): Promise<any> {
+  ): Promise<void> {
     try {
       const user = this.extractProfileFromGoogle(profile);
 
       // Get user's email from Gmail API for better accuracy
-      let gmailEmail = user.email;
+      let gmailEmail = user.email as string;
       try {
         const gmailProfile = await this.fetchGmailProfile(accessToken);
-        if (gmailProfile.emailAddress) {
+        if (gmailProfile && gmailProfile.emailAddress) {
           gmailEmail = gmailProfile.emailAddress;
         }
-      } catch (error) {
+      } catch (error: any) {
         console.warn('Could not fetch Gmail profile:', error);
       }
 
       // Store tokens in Python Agent database
       await this.storeTokensInPythonAgent(
         (profile as any).id || user.providerId,
-        gmailEmail,
+        gmailEmail as string || '',
         accessToken,
         refreshToken,
       );
@@ -101,8 +114,24 @@ export class GmailOAuthStrategy extends PassportStrategy(Strategy, 'gmail') impl
 
       done(null, user);
     } catch (error) {
-      done(error, null);
+      done(error as any, null);
     }
+  }
+
+  /**
+   * Verify OAuth token (for interface compatibility)
+   */
+  async verifyToken(accessToken: string): Promise<OAuthProfile> {
+    // For now, return a simple profile
+    // In production, you could verify token with Google's tokeninfo endpoint
+    return {
+      providerId: '',
+      email: '',
+      displayName: '',
+      firstName: '',
+      lastName: '',
+      picture: '',
+    };
   }
 
   /**
@@ -110,21 +139,25 @@ export class GmailOAuthStrategy extends PassportStrategy(Strategy, 'gmail') impl
    */
   private async fetchGmailProfile(accessToken: string): Promise<any> {
     try {
-      const response = await this.httpService.get('https://www.googleapis.com/gmail/v1/users/me/profile', {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
+      const response = await this.httpService.axiosRef.get(
+        'https://www.googleapis.com/gmail/v1/users/me/profile',
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
         },
-      });
+      );
       return response.data;
-    } catch (error) {
-      throw new Error(`Failed to fetch Gmail profile: ${error.message}`);
+    } catch (error: any) {
+      const errorMessage = (error as any).message || 'Failed to fetch Gmail profile';
+      throw new Error(errorMessage);
     }
   }
 
   /**
    * Store OAuth tokens in Python Agent database
    *
-   * This allows the Python agent to use Gmail API for sending emails
+   * This allows Python agent to use Gmail API for sending emails
    */
   private async storeTokensInPythonAgent(
     userId: string,
@@ -132,20 +165,22 @@ export class GmailOAuthStrategy extends PassportStrategy(Strategy, 'gmail') impl
     accessToken: string,
     refreshToken: string,
   ): Promise<void> {
-    const agentAPIUrl = this.configService.get<string>('AGENT_API_URL', 'http://localhost:8000');
-
     try {
-      await this.httpService.post(`${agentAPIUrl}/api/v1/email/oauth/store-tokens`, {
-        user_id: userId,
-        email_address: emailAddress,
-        access_token: accessToken,
-        refresh_token: refreshToken,
-        expires_in: 3600, // 1 hour
-      });
+      await this.httpService.axiosRef.post(
+        `${this.agentAPIUrl}/api/v1/email/oauth/store-tokens`,
+        {
+          user_id: userId,
+          email_address: emailAddress,
+          access_token: accessToken,
+          refresh_token: refreshToken,
+          expires_in: 3600, // 1 hour
+        },
+      );
       console.log(`✓ Gmail tokens stored for user ${userId} (${emailAddress})`);
-    } catch (error) {
-      console.error(`Failed to store Gmail tokens in Python Agent:`, error);
-      throw new Error(`Token storage failed: ${error.message}`);
+    } catch (error: any) {
+      const errorMessage = (error as any).message || 'Token storage failed';
+      console.error('Failed to store Gmail tokens in Python Agent:', error);
+      throw new Error(errorMessage);
     }
   }
 

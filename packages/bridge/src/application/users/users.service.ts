@@ -293,6 +293,7 @@ export class UsersService {
       telegramUsername: user.telegramUsername,
       telegramId: user.telegramId,
       selectedAiProvider: user.selectedAiProvider,
+      emailAddress: user.emailAddress,
     };
   }
 }

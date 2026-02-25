@@ -54,6 +54,10 @@ export class User extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   claudeApiKey?: string; // Encrypted
 
+  // Email Integration
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  emailAddress?: string; // Gmail email address for sending emails
+
   // Relationships with OAuth providers will be added when we create OAuthProvider entity
   // @OneToMany(() => OAuthAccount, (account) => account.user)
   // oauthAccounts: OAuthAccount[];

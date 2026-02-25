@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Header from "../components/Header";
 import OrbitSystem from "../components/OrbitSystem";
@@ -20,6 +20,7 @@ type ApiResponse = {
   telegramUsername?: string;
   telegramId?: number;
   selectedAiProvider?: "openai" | "claude" | "ollama";
+  emailAddress?: string;
 };
 
 type DesktopTokenResponse = {
@@ -47,6 +48,62 @@ function DashboardContent() {
   const [desktopToken, setDesktopToken] = useState<DesktopTokenResponse | null>(null);
   const [generatingToken, setGeneratingToken] = useState(false);
   const [showTokenModal, setShowTokenModal] = useState(false);
+
+  // Ref to track if OAuth callback has been processed
+  const oauthProcessed = useRef(false);
+
+  // Handle Gmail OAuth callback
+  useEffect(() => {
+    // Prevent re-running the same callback multiple times
+    if (oauthProcessed.current) {
+      return;
+    }
+
+    const emailStatus = searchParams.get("email");
+    const emailAddress = searchParams.get("email_address");
+
+    if (emailStatus === "connected" && emailAddress && user) {
+      oauthProcessed.current = true;
+
+      // Update user on the server
+      const authToken = localStorage.getItem("orbit_token");
+      if (authToken) {
+        fetch(`${API_URL}/users/me`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({
+            emailAddress,
+          }),
+        })
+          .then((res) => res.json())
+          .then((data: ApiResponse) => {
+            setUser(data);
+          })
+          .catch((err) => {
+            console.error("Failed to update user email address:", err);
+          });
+      }
+
+      // Clear URL parameters
+      const url = new URL(window.location.href);
+      url.searchParams.delete("email");
+      url.searchParams.delete("email_address");
+      window.history.replaceState({}, "", url.toString());
+    } else if (emailStatus === "error") {
+      oauthProcessed.current = true;
+      const errorMessage = searchParams.get("message") || "Authentication failed";
+      setError(errorMessage);
+
+      // Clear URL parameters
+      const url = new URL(window.location.href);
+      url.searchParams.delete("email");
+      url.searchParams.delete("message");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, [searchParams, user]);
 
   useEffect(() => {
     // Initialize stars
@@ -137,6 +194,58 @@ function DashboardContent() {
       setUser(data);
     } catch (err: any) {
       setError(err.message || "Failed to disconnect Telegram");
+    }
+  };
+
+  // Gmail actions
+  const handleConnectGmail = () => {
+    // Redirect to Bridge OAuth endpoint
+    const userId = user?.id || "";
+    const bridgeUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+    window.location.href = `${bridgeUrl}/auth/gmail/authorize?user_id=${userId}`;
+  };
+
+  const handleDisconnectGmail = async () => {
+    const authToken = localStorage.getItem("orbit_token");
+    if (!authToken) return;
+
+    try {
+      // Call Python Agent to disconnect Gmail
+      const agentUrl = process.env.NEXT_PUBLIC_AGENT_URL || "http://localhost:8000";
+      const agentResponse = await fetch(`${agentUrl}/api/v1/email/disconnect`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_id: user?.id,
+        }),
+      });
+
+      if (!agentResponse.ok) {
+        throw new Error("Failed to disconnect Gmail from Agent");
+      }
+
+      // Update Bridge database to clear emailAddress
+      const bridgeResponse = await fetch(`${API_URL}/users/me`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          emailAddress: null,
+        }),
+      });
+
+      if (!bridgeResponse.ok) {
+        throw new Error("Failed to update user email address");
+      }
+
+      const data: ApiResponse = await bridgeResponse.json();
+      setUser(data);
+    } catch (err: any) {
+      setError(err.message || "Failed to disconnect Gmail");
     }
   };
 
@@ -320,7 +429,16 @@ function DashboardContent() {
                   {
                     id: "email",
                     name: "Email",
-                    component: <EmailCard key="email" />,
+                    component: (
+                      <EmailCard
+                        key="email"
+                        isConnected={!!user.emailAddress && user.emailAddress.includes("@gmail.com")}
+                        emailAddress={user.emailAddress}
+                        onConnect={handleConnectGmail}
+                        onDisconnect={handleDisconnectGmail}
+                        loading={loading}
+                      />
+                    ),
                   },
                 ];
 
