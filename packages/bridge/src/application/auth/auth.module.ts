@@ -4,8 +4,8 @@ import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
-import { GoogleOAuthStrategy, JwtStrategy, OAuthProviderFactory } from './strategies';
+import { GmailController } from './gmail.controller';
+import { GoogleOAuthStrategy, GmailOAuthStrategy, JwtStrategy, OAuthProviderFactory } from './strategies';
 import { JwtAuthGuard, OAuthAuthGuard } from './guards';
 import { User, OAuthAccount } from '../domain/entities';
 
@@ -29,10 +29,11 @@ import { User, OAuthAccount } from '../domain/entities';
       }),
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, GmailController],
   providers: [
     AuthService,
     GoogleOAuthStrategy,
+    GmailOAuthStrategy,
     JwtStrategy,
     OAuthProviderFactory,
     JwtAuthGuard,
@@ -43,6 +44,7 @@ import { User, OAuthAccount } from '../domain/entities';
     JwtAuthGuard,
     OAuthAuthGuard,
     GoogleOAuthStrategy,
+    GmailOAuthStrategy,
     PassportModule,
   ],
 })
