@@ -170,7 +170,7 @@ export class GmailController {
 
       const data = response.data;
       return {
-        connected: data.connected || false,
+        connected: data.is_connected || false,
         emailAddress: data.email_address || null,
         provider: data.provider || 'gmail',
       };
