@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 
 import Header from "./components/Header";
 import OrbitSystem from "./components/OrbitSystem";
+import Footer from "./components/Footer";
+import Newsletter from "./components/Newsletter";
 
 export default function Home() {
   const [copied, setCopied] = useState(false);
@@ -139,6 +141,12 @@ export default function Home() {
         </div>
 
       </main>
+
+      {/* Newsletter */}
+      <Newsletter />
+
+      {/* Footer */}
+      <Footer />
     </div>
   );
 }
