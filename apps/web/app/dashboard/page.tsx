@@ -484,7 +484,7 @@ function DashboardContent() {
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterType, setFilterType] = useState<"all" | "connected" | "upcoming">("all");
+  const [filterType, setFilterType] = useState<"all" | "connected" | "upcoming" | "corporate" | "social">("all");
 
   return (
     <div className="min-h-screen selection:bg-white selection:text-black font-mono overflow-hidden relative">
@@ -594,7 +594,7 @@ function DashboardContent() {
                 </Button>
               </div>
               {/* Filter Checkboxes */}
-              <div className="flex gap-6 justify-start">
+              <div className="flex gap-6 justify-start flex-wrap">
                 <label className="flex items-center gap-2 cursor-pointer group">
                   <input
                     type="checkbox"
@@ -632,6 +632,32 @@ function DashboardContent() {
                     filterType === "upcoming" ? "text-yellow-400" : "text-white/40 group-hover:text-yellow-400/60"
                   } transition-colors`}>
                     Upcoming
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={filterType === "corporate"}
+                    onChange={() => setFilterType("corporate")}
+                    className="w-4 h-4 accent-blue-500 cursor-pointer"
+                  />
+                  <span className={`text-xs uppercase tracking-wider ${
+                    filterType === "corporate" ? "text-blue-400" : "text-white/40 group-hover:text-blue-400/60"
+                  } transition-colors`}>
+                    Corporate
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={filterType === "social"}
+                    onChange={() => setFilterType("social")}
+                    className="w-4 h-4 accent-purple-500 cursor-pointer"
+                  />
+                  <span className={`text-xs uppercase tracking-wider ${
+                    filterType === "social" ? "text-purple-400" : "text-white/40 group-hover:text-purple-400/60"
+                  } transition-colors`}>
+                    Social
                   </span>
                 </label>
               </div>
@@ -788,6 +814,12 @@ function DashboardContent() {
                     } else if (integration.id === "cursor") {
                       matchesFilter = !user.cursorWorkspacePath;
                     }
+                  } else if (filterType === "corporate") {
+                    // Corporate integrations: Teams, Bitbucket, Jira
+                    matchesFilter = integration.id === "teams" || integration.id === "bitbucket" || integration.id === "jira";
+                  } else if (filterType === "social") {
+                    // Social integrations: Telegram
+                    matchesFilter = integration.id === "telegram";
                   }
 
                   return matchesSearch && matchesFilter;
