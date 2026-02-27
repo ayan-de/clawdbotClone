@@ -482,8 +482,9 @@ function DashboardContent() {
     return date.toLocaleString();
   };
 
-  // Search state
+  // Search and filter state
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState<"all" | "connected" | "upcoming">("all");
 
   return (
     <div className="min-h-screen selection:bg-white selection:text-black font-mono overflow-hidden relative">
@@ -580,7 +581,7 @@ function DashboardContent() {
 
             {/* Search Bar */}
             <div className="max-w-4xl mx-auto mb-12">
-              <div className="flex gap-4">
+              <div className="flex gap-4 mb-4">
                 <div className="flex-1">
                   <SearchInput
                     placeholder="Search integrations..."
@@ -591,6 +592,48 @@ function DashboardContent() {
                 <Button variant="default" className="cursor-pointer">
                   Add Integration
                 </Button>
+              </div>
+              {/* Filter Checkboxes */}
+              <div className="flex gap-6 justify-start">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={filterType === "all"}
+                    onChange={() => setFilterType("all")}
+                    className="w-4 h-4 accent-white cursor-pointer"
+                  />
+                  <span className={`text-xs uppercase tracking-wider ${
+                    filterType === "all" ? "text-white" : "text-white/40 group-hover:text-white/60"
+                  } transition-colors`}>
+                    All
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={filterType === "connected"}
+                    onChange={() => setFilterType("connected")}
+                    className="w-4 h-4 accent-green-500 cursor-pointer"
+                  />
+                  <span className={`text-xs uppercase tracking-wider ${
+                    filterType === "connected" ? "text-green-400" : "text-white/40 group-hover:text-green-400/60"
+                  } transition-colors`}>
+                    Connected
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={filterType === "upcoming"}
+                    onChange={() => setFilterType("upcoming")}
+                    className="w-4 h-4 accent-yellow-500 cursor-pointer"
+                  />
+                  <span className={`text-xs uppercase tracking-wider ${
+                    filterType === "upcoming" ? "text-yellow-400" : "text-white/40 group-hover:text-yellow-400/60"
+                  } transition-colors`}>
+                    Upcoming
+                  </span>
+                </label>
               </div>
             </div>
 
@@ -704,10 +747,51 @@ function DashboardContent() {
                   },
                 ];
 
-                // Filter integrations based on search query
-                const filteredIntegrations = integrations.filter((integration) =>
-                  integration.name.toLowerCase().includes(searchQuery.toLowerCase())
-                );
+                // Filter integrations based on search query and filter type
+                const filteredIntegrations = integrations.filter((integration) => {
+                  // Check if search query matches
+                  const matchesSearch = integration.name.toLowerCase().includes(searchQuery.toLowerCase());
+
+                  // Check if filter type matches
+                  let matchesFilter = true;
+                  if (filterType === "connected") {
+                    // Determine if integration is connected based on its properties
+                    if (integration.id === "telegram") {
+                      matchesFilter = !!user.telegramUsername;
+                    } else if (integration.id === "email") {
+                      matchesFilter = !!user.emailAddress && user.emailAddress.includes("@gmail.com");
+                    } else if (integration.id === "teams") {
+                      matchesFilter = !!user.teamsEmail;
+                    } else if (integration.id === "jira") {
+                      matchesFilter = !!user.jiraWorkspaceUrl;
+                    } else if (integration.id === "bitbucket") {
+                      matchesFilter = !!user.bitbucketUsername;
+                    } else if (integration.id === "github") {
+                      matchesFilter = !!user.githubUsername;
+                    } else if (integration.id === "cursor") {
+                      matchesFilter = !!user.cursorWorkspacePath;
+                    }
+                  } else if (filterType === "upcoming") {
+                    // Determine if integration is NOT connected
+                    if (integration.id === "telegram") {
+                      matchesFilter = !user.telegramUsername;
+                    } else if (integration.id === "email") {
+                      matchesFilter = !(!!user.emailAddress && user.emailAddress.includes("@gmail.com"));
+                    } else if (integration.id === "teams") {
+                      matchesFilter = !user.teamsEmail;
+                    } else if (integration.id === "jira") {
+                      matchesFilter = !user.jiraWorkspaceUrl;
+                    } else if (integration.id === "bitbucket") {
+                      matchesFilter = !user.bitbucketUsername;
+                    } else if (integration.id === "github") {
+                      matchesFilter = !user.githubUsername;
+                    } else if (integration.id === "cursor") {
+                      matchesFilter = !user.cursorWorkspacePath;
+                    }
+                  }
+
+                  return matchesSearch && matchesFilter;
+                });
 
                 return filteredIntegrations.length > 0 ? (
                   filteredIntegrations.map((integration) => integration.component)
