@@ -1,53 +1,53 @@
 "use client";
 
+import { FaBitbucket } from "react-icons/fa";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "../ui/card";
 import { Button } from "../ui/button";
 
-export interface EmailCardProps {
+export interface BitbucketCardProps {
   isConnected: boolean;
-  emailAddress?: string;
+  username?: string;
+  workspace?: string;
   onConnect: () => void;
   onDisconnect: () => void;
   loading?: boolean;
 }
 
 /**
- * Gmail Integration Card Component
- * Displays connection status and actions for Gmail integration
+ * Bitbucket Integration Card Component
+ * Displays connection status and actions for Bitbucket integration
  */
-export function EmailCard({
+export function BitbucketCard({
   isConnected,
-  emailAddress,
+  username,
+  workspace,
   onConnect,
   onDisconnect,
   loading = false,
-}: EmailCardProps) {
-  const gmailColor = "#EA4335";
-  const gmailColorLight = "rgba(234, 67, 53, 0.1)";
-  const gmailColorBorder = "rgba(234, 67, 53, 0.3)";
-  const gmailColorGlow = "rgba(234, 67, 53, 0.5)";
+}: BitbucketCardProps) {
+  const bitbucketColor = "#0052cc";
+  const bitbucketColorLight = "rgba(0, 82, 204, 0.1)";
+  const bitbucketColorBorder = "rgba(0, 82, 204, 0.3)";
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>
           <div className="flex items-center gap-3">
-            <img
-              src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/webp/gmail.webp"
-              alt="Gmail"
-              className="w-5 h-5"
-            />
-            <span>Integration::Email</span>
+            <FaBitbucket className="text-lg" style={{ color: bitbucketColor }} />
+            <span>Integration::Bitbucket</span>
             <div className="flex-1" />
             <div
-              className={`flex items-center gap-2 text-[10px] uppercase tracking-widest ${isConnected ? "text-green-500/80" : "text-yellow-500/80"
-                }`}
+              className={`flex items-center gap-2 text-[10px] uppercase tracking-widest ${
+                isConnected ? "text-green-500/80" : "text-yellow-500/80"
+              }`}
             >
               <div
-                className={`w-2 h-2 rounded-full ${isConnected
+                className={`w-2 h-2 rounded-full ${
+                  isConnected
                     ? "bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)] animate-pulse"
                     : "bg-yellow-500/50"
-                  }`}
+                }`}
               />
               {isConnected ? "Connected" : "Disconnected"}
             </div>
@@ -58,39 +58,40 @@ export function EmailCard({
       <CardContent className="space-y-4">
         {/* Description */}
         <p className="text-xs text-white/60 leading-relaxed">
-          Connect your Gmail account to send emails through natural language
-          commands using Orbit AI.
+          Connect your Bitbucket account to manage repositories, create pull
+          requests, and track issues using Orbit AI.
         </p>
 
         {/* Connection Details */}
-        {isConnected && emailAddress && (
+        {isConnected && (username || workspace) && (
           <div
             className="border p-4 relative"
             style={{
-              backgroundColor: gmailColorLight,
-              borderColor: gmailColorBorder,
+              backgroundColor: bitbucketColorLight,
+              borderColor: bitbucketColorBorder,
             }}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <img
-                  src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/webp/gmail.webp"
-                  alt="Gmail"
-                  className="w-5 h-5"
-                />
+                <FaBitbucket style={{ color: bitbucketColor }} />
                 <div>
                   <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">
                     Linked Account
                   </p>
                   <p className="text-sm font-bold text-white tracking-tight">
-                    {emailAddress}
+                    {username || workspace}
                   </p>
+                  {workspace && (
+                    <p className="text-[10px] text-white/60 mt-1">
+                      Workspace: {workspace}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
             <div
               className="absolute -top-1 -right-1 w-2 h-2 rounded-full animate-pulse"
-              style={{ backgroundColor: gmailColor }}
+              style={{ backgroundColor: bitbucketColor }}
             />
           </div>
         )}
@@ -99,32 +100,17 @@ export function EmailCard({
           <div className="border border-white/20 p-4 bg-white/5">
             <div className="space-y-2 text-[10px] text-white/80">
               <p>
-                <strong className="text-white">How to connect Gmail:</strong>
+                <strong className="text-white">How to connect Bitbucket:</strong>
               </p>
               <ol className="list-decimal list-inside space-y-1 mt-2 ml-2">
                 <li>Click the "Connect" button below</li>
-                <li>You'll be redirected to Google OAuth</li>
-                <li>Authorize Orbit to send emails</li>
-                <li>You'll be redirected back with Gmail connected</li>
+                <li>You'll be redirected to Atlassian OAuth</li>
+                <li>Authorize Orbit to access your repositories</li>
+                <li>You'll be redirected back with Bitbucket connected</li>
               </ol>
             </div>
           </div>
         )}
-
-        {/* Example Usage */}
-        {/* {isConnected && (
-          <div className="mt-2 p-3 bg-white/5 rounded border border-white/10">
-            <p className="text-[10px] text-white/70 mb-1">
-              Example usage:
-            </p>
-            <code className="text-sm text-white/90 block">
-              "email 'Happy birthday' to friend@gmail.com"
-            </code>
-            <p className="text-[10px] text-white/60 mt-2">
-              Or with file attachments: "email 'Here is the report' to boss@company.com with this file"
-            </p>
-          </div>
-        )} */}
       </CardContent>
 
       <CardFooter className="flex flex-col gap-3">
@@ -133,9 +119,9 @@ export function EmailCard({
             onClick={onConnect}
             loading={loading}
             className="w-full cursor-pointer"
-            style={{ backgroundColor: gmailColor, color: "white" }}
+            style={{ backgroundColor: bitbucketColor, color: "white" }}
           >
-            Connect Gmail
+            Connect Bitbucket
           </Button>
         )}
 
@@ -145,9 +131,9 @@ export function EmailCard({
               onClick={onConnect}
               loading={loading}
               className="w-full cursor-pointer"
-              style={{ backgroundColor: gmailColor, color: "white" }}
+              style={{ backgroundColor: bitbucketColor, color: "white" }}
             >
-              Reauthorize Gmail
+              Reauthorize Bitbucket
             </Button>
             <Button
               variant="outline"
@@ -155,8 +141,8 @@ export function EmailCard({
               loading={loading}
               className="w-full cursor-pointer"
               style={{
-                borderColor: gmailColorBorder,
-                color: gmailColor,
+                borderColor: bitbucketColorBorder,
+                color: bitbucketColor,
               }}
             >
               Disconnect

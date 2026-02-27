@@ -1,6 +1,5 @@
 "use client";
 
-import { FaTelegram } from "react-icons/fa";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "../ui/card";
 import { Button } from "../ui/button";
 
@@ -35,7 +34,11 @@ export function TelegramCard({
       <CardHeader>
         <CardTitle>
           <div className="flex items-center gap-3">
-            <FaTelegram className="text-lg" style={{ color: telegramColor }} />
+            <img
+              src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/webp/telegram.webp"
+              alt="Telegram"
+              className="w-5 h-5"
+            />
             <span>Integration::Telegram</span>
             <div className="flex-1" />
             <div
@@ -74,7 +77,11 @@ export function TelegramCard({
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <FaTelegram style={{ color: telegramColor }} />
+                <img
+                  src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/webp/telegram.webp"
+                  alt="Telegram"
+                  className="w-5 h-5"
+                />
                 <div>
                   <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">
                     Linked Account
@@ -117,7 +124,7 @@ export function TelegramCard({
           <Button
             onClick={onConnect}
             loading={loading}
-            className="w-full"
+            className="w-full cursor-pointer"
             style={{ backgroundColor: telegramColor, color: "white" }}
           >
             Connect Telegram
@@ -129,7 +136,7 @@ export function TelegramCard({
             <Button
               onClick={onAuthorizeDesktop}
               loading={loading}
-              className="w-full"
+              className="w-full cursor-pointer"
               style={{ backgroundColor: telegramColor, color: "white" }}
             >
               Authorize Desktop
@@ -138,7 +145,7 @@ export function TelegramCard({
               variant="outline"
               onClick={onDisconnect}
               loading={loading}
-              className="w-full"
+              className="w-full cursor-pointer"
               style={{
                 borderColor: telegramColorBorder,
                 color: telegramColor,

@@ -7,6 +7,11 @@ import OrbitSystem from "../components/OrbitSystem";
 import { API_URL } from "../config";
 import { TelegramCard } from "../components/integrations/TelegramCard";
 import { EmailCard } from "../components/integrations/EmailCard";
+import { TeamsCard } from "../components/integrations/TeamsCard";
+import { JiraCard } from "../components/integrations/JiraCard";
+import { BitbucketCard } from "../components/integrations/BitbucketCard";
+import { GithubCard } from "../components/integrations/GithubCard";
+import { CursorCard } from "../components/integrations/CursorCard";
 import { Button } from "../components/ui/button";
 import { SearchInput } from "../components/ui/search-input";
 
@@ -21,6 +26,15 @@ type ApiResponse = {
   telegramId?: number;
   selectedAiProvider?: "openai" | "claude" | "ollama";
   emailAddress?: string;
+  teamsEmail?: string;
+  jiraWorkspaceUrl?: string;
+  jiraUsername?: string;
+  bitbucketUsername?: string;
+  bitbucketWorkspace?: string;
+  githubUsername?: string;
+  githubRepositories?: number;
+  cursorWorkspacePath?: string;
+  cursorProjectCount?: number;
 };
 
 type DesktopTokenResponse = {
@@ -249,6 +263,180 @@ function DashboardContent() {
     }
   };
 
+  // Teams actions
+  const handleConnectTeams = () => {
+    const userId = user?.id || "";
+    const bridgeUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+    window.location.href = `${bridgeUrl}/auth/teams/authorize?user_id=${userId}`;
+  };
+
+  const handleDisconnectTeams = async () => {
+    const authToken = localStorage.getItem("orbit_token");
+    if (!authToken) return;
+
+    try {
+      const response = await fetch(`${API_URL}/users/me`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          teamsEmail: null,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to disconnect Teams");
+      }
+
+      const data: ApiResponse = await response.json();
+      setUser(data);
+    } catch (err: any) {
+      setError(err.message || "Failed to disconnect Teams");
+    }
+  };
+
+  // Jira actions
+  const handleConnectJira = () => {
+    const userId = user?.id || "";
+    const bridgeUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+    window.location.href = `${bridgeUrl}/auth/jira/authorize?user_id=${userId}`;
+  };
+
+  const handleDisconnectJira = async () => {
+    const authToken = localStorage.getItem("orbit_token");
+    if (!authToken) return;
+
+    try {
+      const response = await fetch(`${API_URL}/users/me`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          jiraWorkspaceUrl: null,
+          jiraUsername: null,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to disconnect Jira");
+      }
+
+      const data: ApiResponse = await response.json();
+      setUser(data);
+    } catch (err: any) {
+      setError(err.message || "Failed to disconnect Jira");
+    }
+  };
+
+  // Bitbucket actions
+  const handleConnectBitbucket = () => {
+    const userId = user?.id || "";
+    const bridgeUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+    window.location.href = `${bridgeUrl}/auth/bitbucket/authorize?user_id=${userId}`;
+  };
+
+  const handleDisconnectBitbucket = async () => {
+    const authToken = localStorage.getItem("orbit_token");
+    if (!authToken) return;
+
+    try {
+      const response = await fetch(`${API_URL}/users/me`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          bitbucketUsername: null,
+          bitbucketWorkspace: null,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to disconnect Bitbucket");
+      }
+
+      const data: ApiResponse = await response.json();
+      setUser(data);
+    } catch (err: any) {
+      setError(err.message || "Failed to disconnect Bitbucket");
+    }
+  };
+
+  // GitHub actions
+  const handleConnectGithub = () => {
+    const userId = user?.id || "";
+    const bridgeUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+    window.location.href = `${bridgeUrl}/auth/github/authorize?user_id=${userId}`;
+  };
+
+  const handleDisconnectGithub = async () => {
+    const authToken = localStorage.getItem("orbit_token");
+    if (!authToken) return;
+
+    try {
+      const response = await fetch(`${API_URL}/users/me`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          githubUsername: null,
+          githubRepositories: null,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to disconnect GitHub");
+      }
+
+      const data: ApiResponse = await response.json();
+      setUser(data);
+    } catch (err: any) {
+      setError(err.message || "Failed to disconnect GitHub");
+    }
+  };
+
+  // Cursor actions
+  const handleConnectCursor = () => {
+    const userId = user?.id || "";
+    const bridgeUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+    window.location.href = `${bridgeUrl}/auth/cursor/authorize?user_id=${userId}`;
+  };
+
+  const handleDisconnectCursor = async () => {
+    const authToken = localStorage.getItem("orbit_token");
+    if (!authToken) return;
+
+    try {
+      const response = await fetch(`${API_URL}/users/me`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          cursorWorkspacePath: null,
+          cursorProjectCount: null,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to disconnect Cursor");
+      }
+
+      const data: ApiResponse = await response.json();
+      setUser(data);
+    } catch (err: any) {
+      setError(err.message || "Failed to disconnect Cursor");
+    }
+  };
+
   const generateDesktopToken = async () => {
     const authToken = localStorage.getItem("orbit_token");
     if (!authToken) return;
@@ -440,6 +628,80 @@ function DashboardContent() {
                       />
                     ),
                   },
+                  {
+                    id: "teams",
+                    name: "Microsoft Teams",
+                    component: (
+                      <TeamsCard
+                        key="teams"
+                        isConnected={!!user.teamsEmail}
+                        email={user.teamsEmail}
+                        onConnect={handleConnectTeams}
+                        onDisconnect={handleDisconnectTeams}
+                        loading={loading}
+                      />
+                    ),
+                  },
+                  {
+                    id: "jira",
+                    name: "Jira",
+                    component: (
+                      <JiraCard
+                        key="jira"
+                        isConnected={!!user.jiraWorkspaceUrl}
+                        workspaceUrl={user.jiraWorkspaceUrl}
+                        username={user.jiraUsername}
+                        onConnect={handleConnectJira}
+                        onDisconnect={handleDisconnectJira}
+                        loading={loading}
+                      />
+                    ),
+                  },
+                  {
+                    id: "bitbucket",
+                    name: "Bitbucket",
+                    component: (
+                      <BitbucketCard
+                        key="bitbucket"
+                        isConnected={!!user.bitbucketUsername}
+                        username={user.bitbucketUsername}
+                        workspace={user.bitbucketWorkspace}
+                        onConnect={handleConnectBitbucket}
+                        onDisconnect={handleDisconnectBitbucket}
+                        loading={loading}
+                      />
+                    ),
+                  },
+                  {
+                    id: "github",
+                    name: "GitHub",
+                    component: (
+                      <GithubCard
+                        key="github"
+                        isConnected={!!user.githubUsername}
+                        username={user.githubUsername}
+                        repositories={user.githubRepositories}
+                        onConnect={handleConnectGithub}
+                        onDisconnect={handleDisconnectGithub}
+                        loading={loading}
+                      />
+                    ),
+                  },
+                  {
+                    id: "cursor",
+                    name: "Cursor Editor",
+                    component: (
+                      <CursorCard
+                        key="cursor"
+                        isConnected={!!user.cursorWorkspacePath}
+                        workspacePath={user.cursorWorkspacePath}
+                        projectCount={user.cursorProjectCount}
+                        onConnect={handleConnectCursor}
+                        onDisconnect={handleDisconnectCursor}
+                        loading={loading}
+                      />
+                    ),
+                  },
                 ];
 
                 // Filter integrations based on search query
@@ -450,7 +712,7 @@ function DashboardContent() {
                 return filteredIntegrations.length > 0 ? (
                   filteredIntegrations.map((integration) => integration.component)
                 ) : (
-                  <div className="col-span-1 md:col-span-2 lg:col-span-3 text-center py-12">
+                  <div className="col-span-1 md:col-span-2 lg:grid-cols-3 text-center py-12">
                     <p className="text-white/40 text-sm uppercase tracking-widest">
                       [ No integrations found matching "{searchQuery}" ]
                     </p>
