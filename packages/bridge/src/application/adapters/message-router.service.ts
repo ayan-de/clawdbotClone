@@ -13,9 +13,42 @@ import { CommandOrchestratorService } from '../execution/command-orchestrator.se
 
 /**
  * Message Router Service
- * Routes messages to appropriate chat platform adapters
- * Follows Strategy Pattern - selects adapter based on platform
- * Uses Strategy Pattern for message transformers - no switch statements
+ *
+ * EXTERNAL MESSAGE ROUTING AUTHORITY in the Bridge architecture.
+ *
+ * ARCHITECTURE BOUNDARIES:
+ * There are TWO distinct routing systems with different scopes:
+ *
+ * 1. EXTERNAL ROUTING (this service - TypeScript):
+ *    - Routes: External Chat Platforms → Bridge → Agent
+ *    - Scope: Routing messages FROM platforms (Telegram, Discord, Slack) TO the Bridge
+ *    - Entry Point: Chat platforms send messages to Bridge via webhooks/events
+ *    - Purpose: Get user messages INTO the agent system
+ *    - Pattern: Strategy Pattern for platform adapters
+ *
+ * 2. INTERNAL ROUTING (Python LangGraph - graph.py):
+ *    - Routes: Agent Intent Classification → Workflow Nodes
+ *    - Scope: Routing WITHIN agent state machine (classifier → planner → executor → responder)
+ *    - Entry Point: Agent receives message and decides what to do
+ *    - Purpose: Agent reasoning and workflow orchestration
+ *    - Pattern: LangGraph conditional edges
+ *
+ * ROUTING BOUNDARY:
+ * - External Router (this): ENDS at the Python Agent
+ * - Internal Router (LangGraph): STARTS at the Python Agent
+ *
+ * FLOW:
+ * User/Chat → MessageRouterService (EXTERNAL) → Python Agent → LangGraph (INTERNAL)
+ *
+ * RESPONSIBILITIES:
+ * - Selects appropriate chat platform adapter based on platform type
+ * - Routes incoming messages FROM platforms TO the Bridge
+ * - Sends messages back TO platforms (response routing)
+ * - Manages platform-specific message transformers
+ * - NO internal agent routing (that's LangGraph's responsibility)
+ *
+ * Follows Strategy Pattern - selects adapter based on platform.
+ * Uses Strategy Pattern for message transformers - no switch statements.
  */
 @Injectable()
 export class MessageRouterService implements IMessageRouterService {

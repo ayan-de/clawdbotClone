@@ -14,22 +14,39 @@ import { DesktopGateway } from '../../presentation/websocket/desktop.gateway';
  *
  * Coordinates the command execution flow between services.
  *
+ * ROUTING ARCHITECTURE NOTE:
+ * This orchestrator sits at the BOUNDARY between external and internal routing:
+ *
+ * 1. EXTERNAL ROUTING (MessageRouterService):
+ *    - Routes: Chat Platforms → Bridge → This Orchestrator
+ *    - Ends HERE when it delegates to AgentService
+ *
+ * 2. INTERNAL ROUTING (Python LangGraph):
+ *    - Routes: Within Agent's state machine
+ *    - Starts HERE when AgentService.processMessage is called
+ *
  * Architecture Responsibilities:
  * - Python Agent: NLP reasoning, intent classification, command generation
- * - Bridge (this orchestrator): Message routing and execution coordination
+ * - Bridge (this orchestrator): Boundary between external & internal routing
  * - CommandsService: SINGLE AUTHORITY for command execution
  * - Desktop TUI: Actual shell command execution
  *
  * IMPORTANT: This orchestrator does NOT execute commands directly.
  * It delegates ALL command execution to CommandsService (the single authority).
  *
- * Message Flow:
- * 1. Chat message received → MessageRouterService
- * 2. MessageRouter → CommandOrchestrator.executeCommand
- * 3. CommandOrchestrator → AgentService.processMessage (Python Agent)
- * 4. Agent returns command or direct response
- * 5. If command: CommandOrchestrator → DesktopGateway.sendCommand (to Desktop)
- * 6. Desktop executes → returns result → MessageRouter → User
+ * Message Flow with Routing Boundaries:
+ * 1. Chat message received → MessageRouterService (EXTERNAL ROUTING STARTS)
+ * 2. MessageRouter → CommandOrchestrator.executeCommand (EXTERNAL ROUTING)
+ * 3. CommandOrchestrator → AgentService.processMessage (EXTERNAL ROUTING ENDS)
+ * 4. AgentService → Python Agent (INTERNAL ROUTING STARTS)
+ * 5. Agent returns command or direct response (INTERNAL ROUTING)
+ * 6. If command: CommandOrchestrator → DesktopGateway.sendCommand (to Desktop)
+ * 7. Desktop executes → returns result → MessageRouter → User
+ *
+ * ROUTING BOUNDARY CLARIFICATION:
+ * - External Routing: MessageRouterService → CommandOrchestrator → AgentService (TypeScript)
+ * - Internal Routing: Agent LangGraph (Python) - state machine transitions
+ * - This orchestrator is the BRIDGE between external and internal routing
  *
  * Follows Single Responsibility Principle - focused solely on orchestration,
  * delegating actual command execution to the authoritative CommandsService.
