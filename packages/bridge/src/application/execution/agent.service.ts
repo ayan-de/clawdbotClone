@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { IAgentService, AgentResponse } from './interfaces/agent-service.interface';
@@ -6,6 +6,15 @@ import { IAgentService, AgentResponse } from './interfaces/agent-service.interfa
 /**
  * Agent Service
  * Handles communication with Python Orbit Agent API
+ *
+ * NOTE: The Python Agent is a REQUIRED service. This Bridge does NOT have a fallback
+ * for direct command execution. All commands MUST go through the Agent for NLP
+ * translation and intent classification.
+ *
+ * Responsibility Split:
+ * - Python Agent: LLM reasoning, intent classification, command generation
+ * - NestJS Bridge: Message routing, WebSocket management, session persistence
+ * - Desktop TUI: Actual shell command execution (only here)
  */
 @Injectable()
 export class AgentService implements IAgentService {
@@ -23,15 +32,18 @@ export class AgentService implements IAgentService {
 
     /**
      * Process user message through Python Agent
+     *
+     * @throws {NotFoundException} If agent service is unavailable
+     * @throws {Error} If agent request fails
      */
     async processMessage(
         sessionId: string,
         message: string,
         userId: string,
     ): Promise<AgentResponse> {
-        try {
-            this.logger.log(`Processing message via agent (Session: ${sessionId})`);
+        this.logger.log(`Processing message via agent (Session: ${sessionId}, User: ${userId})`);
 
+        try {
             // Call Python agent API
             const response = await this.httpService.axiosRef.post(
                 `${this.agentBaseUrl}/api/v1/agent/invoke`,
@@ -49,17 +61,25 @@ export class AgentService implements IAgentService {
             );
 
             return agentResponse;
-        } catch (error) {
-            this.logger.error(`Failed to process message via agent: ${error}`);
+        } catch (error: any) {
+            // The agent is a required service - fail fast if unavailable
+            this.logger.error(`Agent request failed: ${error.message}`);
 
-            // Fall back to treating message as direct command
-            // This ensures system still works even if agent is down
-            return {
-                messages: [`❌ Agent unavailable. Executing as direct command.`],
-                intent: 'command',
-                status: 'success',
-                command: message.trim(),
-            };
+            if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+                throw new NotFoundException(
+                    'Python Agent service is not available. Please ensure the orbit-agent service is running at ' + this.agentBaseUrl,
+                );
+            }
+
+            if (error.response?.status === 404) {
+                throw new NotFoundException(
+                    'Agent endpoint not found. Please verify the agent API is available at ' + this.agentBaseUrl,
+                );
+            }
+
+            throw new Error(
+                `Failed to communicate with Agent service: ${error.message || 'Unknown error'}`,
+            );
         }
     }
 
