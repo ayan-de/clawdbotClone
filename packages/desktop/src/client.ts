@@ -14,6 +14,32 @@ const require = createRequire(import.meta.url);
 
 const logger = Logger.getInstance();
 
+/**
+ * Desktop Client
+ *
+ * WebSocket client for connecting to NestJS Bridge from Desktop TUI.
+ *
+ * ARCHITECTURE NOTE:
+ * There are two clients that connect to the Bridge, with different purposes:
+ *
+ * 1. OrchestratorClient (Python):
+ *    - File: orbit-agent/src/bridge/orchestrator_client.py
+ *    - Purpose: Python Agent → NestJS Bridge via HTTP
+ *    - Used for: Command execution from agent tools
+ *    - Protocol: HTTP REST API
+ *
+ * 2. DesktopClient (this - TypeScript):
+ *    - File: packages/desktop/src/client.ts
+ *    - Purpose: Desktop TUI → NestJS Bridge via WebSocket
+ *    - Used for: Receiving commands, sending execution results
+ *    - Protocol: WebSocket (Socket.io)
+ *
+ * DISTINCTION:
+ * - OrchestratorClient: Calls Bridge TO EXECUTE commands (initiated by agent)
+ * - DesktopClient: Connects TO Bridge to RECEIVE commands (initiated by user/chat)
+ *
+ * Both connect to the same Bridge server but with different protocols and purposes.
+ */
 export class DesktopClient {
   private socket: Socket | null = null;
   // ... existing code ...
