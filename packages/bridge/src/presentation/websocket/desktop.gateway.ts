@@ -17,11 +17,31 @@ import { BaseWebSocketGateway } from './base-websocket.gateway';
 
 /**
  * Desktop Gateway
- * Handles WebSocket connections from Desktop TUI clients
- * Routes commands to desktop and streams output back to Telegram
  *
- * Architecture:
- * Desktop TUI → DesktopGateway (WebSocket) → MessageRouterService → Telegram
+ * WebSocket gateway for Desktop TUI clients. This is the FINAL BRIDGE before
+ * actual shell command execution (which only happens in Desktop TUI).
+ *
+ * ARCHITECTURE OWNERSHIP:
+ * - Python Agent: NLP translation, intent classification, command generation
+ * - Bridge CommandsService: SINGLE AUTHORITY for command execution
+ * - DesktopGateway (this): Routes commands from Bridge to Desktop TUI
+ * - Desktop TUI: Actual shell command execution (ONLY here)
+ *
+ * SINGLE AUTHORITY RULE:
+ * ALL shell command execution MUST flow through:
+ * CommandsService → DesktopGateway (this) → Desktop TUI (shell)
+ *
+ * This gateway:
+ * - Routes commands from Bridge's single authority (CommandsService) to Desktop TUI
+ * - Streams output/results back to Bridge
+ * - NEVER executes shell commands directly (only forwards to Desktop TUI)
+ *
+ * Architecture Flow:
+ * 1. CommandsService (single authority) calls DesktopGateway.sendCommand
+ * 2. DesktopGateway forwards via WebSocket to Desktop TUI
+ * 3. Desktop TUI executes shell command (only place where shell runs)
+ * 4. Desktop TUI returns output/result via WebSocket
+ * 5. DesktopGateway emits events for MessageRouterService to route back to user
  *
  * NOTE: Services are resolved via ModuleRef/DataSource because NestJS gateway
  * constructor DI is unreliable when extending a base class.
@@ -327,8 +347,19 @@ export class DesktopGateway extends BaseWebSocketGateway implements OnGatewayIni
   }
 
   /**
-   * Send command to Desktop TUI
-   * Called by MessageRouterService when user sends command via Telegram
+   * Send command to Desktop TUI for execution.
+   *
+   * Called by Bridge's SINGLE AUTHORITY (CommandsService) to forward commands
+   * to the Desktop TUI for actual shell execution.
+   *
+   * IMPORTANT: This gateway NEVER executes shell commands directly.
+   * It only forwards commands to Desktop TUI (the ONLY component that executes shell).
+   *
+   * @param sessionId - The session ID (links to a specific Desktop TUI connection)
+   * @param command - The shell command to execute (will be executed by Desktop TUI)
+   * @param requestId - Optional request ID for tracking (used by REST API)
+   * @param trusted - Whether command is trusted (bypasses some Desktop validations)
+   * @throws {Error} If no desktop is connected for the session
    */
   async sendCommand(sessionId: string, command: string, requestId?: string, trusted: boolean = false): Promise<void> {
     this.logger.log(`Sending command to session: ${sessionId}, command: ${command}, trusted: ${trusted}`);

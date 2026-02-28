@@ -11,8 +11,28 @@ import { DesktopGateway } from '../../presentation/websocket/desktop.gateway';
 
 /**
  * Command Orchestrator Service
- * Coordinates the command execution flow between services
- * Follows Single Responsibility Principle - focused solely on orchestration
+ *
+ * Coordinates the command execution flow between services.
+ *
+ * Architecture Responsibilities:
+ * - Python Agent: NLP reasoning, intent classification, command generation
+ * - Bridge (this orchestrator): Message routing and execution coordination
+ * - CommandsService: SINGLE AUTHORITY for command execution
+ * - Desktop TUI: Actual shell command execution
+ *
+ * IMPORTANT: This orchestrator does NOT execute commands directly.
+ * It delegates ALL command execution to CommandsService (the single authority).
+ *
+ * Message Flow:
+ * 1. Chat message received → MessageRouterService
+ * 2. MessageRouter → CommandOrchestrator.executeCommand
+ * 3. CommandOrchestrator → AgentService.processMessage (Python Agent)
+ * 4. Agent returns command or direct response
+ * 5. If command: CommandOrchestrator → DesktopGateway.sendCommand (to Desktop)
+ * 6. Desktop executes → returns result → MessageRouter → User
+ *
+ * Follows Single Responsibility Principle - focused solely on orchestration,
+ * delegating actual command execution to the authoritative CommandsService.
  */
 @Injectable()
 export class CommandOrchestratorService implements ICommandExecutionService {

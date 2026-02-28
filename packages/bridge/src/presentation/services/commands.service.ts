@@ -6,7 +6,17 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 /**
  * Commands Service
  *
- * Handles REST API command execution by coordinating with Desktop Gateway.
+ * SINGLE AUTHORITY for all shell command execution in the Bridge architecture.
+ *
+ * Architecture Responsibilities:
+ * - Python Agent: NLP translation, intent classification, planning
+ * - Bridge (this service): Command execution orchestration (AUTHORITY)
+ * - Desktop TUI: Actual shell command execution (only here)
+ *
+ * SINGLE AUTHORITY RULE:
+ * This service is the ONLY component that should initiate shell command execution.
+ * All command requests MUST route through this service.
+ *
  * Provides synchronous interface over asynchronous WebSocket communication.
  */
 @Injectable()

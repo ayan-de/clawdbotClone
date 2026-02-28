@@ -23,8 +23,33 @@ export interface ExecutedCommand {
 
 /**
  * Command Handler class
- * Executes shell commands safely with streaming output
+ *
+ * SINGLE AUTHORITY for shell command execution in the entire Orbit system.
+ *
+ * ARCHITECTURE OWNERSHIP:
+ * - Python Agent: NLP translation, intent classification, command generation
+ * - Bridge CommandsService: Command execution orchestration (sends to Desktop TUI)
+ * - Desktop TUI (this class): ACTUAL shell command execution (ONLY here)
+ *
+ * SINGLE AUTHORITY RULE:
+ * Shell commands MUST ONLY be executed by this CommandHandler class.
+ * NO other component in the system executes shell commands directly.
+ *
+ * Receives commands from:
+ * 1. Bridge DesktopGateway (via WebSocket)
+ * 2. Direct TUI user input
+ *
+ * Never initiates command execution independently.
+ * Always responds to commands received from Bridge or user input.
+ *
+ * Safety Features:
+ * - Command validation and sanitization
+ * - Working directory constraints
+ * - Output size limits
+ * - Process timeouts
+ * - Signal handling for graceful/force kill
  */
+export class CommandHandler {
 export class CommandHandler {
   private activeProcesses = new Map<number, ChildProcess>();
   private workingDir: string;

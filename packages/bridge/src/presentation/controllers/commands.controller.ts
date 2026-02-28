@@ -7,13 +7,26 @@ import { ExecuteCommandDto, CommandResponseDto } from '../dto/execute-command.dt
  * Commands Controller
  *
  * REST API endpoints for executing shell commands.
- * Used by external AI Agent (orbit-agent) to execute commands via Bridge.
+ *
+ * ARCHITECTURE OWNERSHIP:
+ * - Bridge (this controller): SINGLE authoritative entry point for all command execution
+ * - Python Agent: Only for NLP translation and planning - MUST NOT execute directly
+ * - Desktop TUI: Actual shell execution (only this component)
+ *
+ * SINGLE AUTHORITY RULE:
+ * All shell command execution MUST flow through this controller.
+ * No component except the Desktop TUI should execute shell commands directly.
+ *
+ * Supported Use Cases:
+ * 1. Agent workflows (multi-step): Agent returns commands to Bridge, Bridge executes
+ * 2. External API calls: Direct HTTP POST to this endpoint
+ * 3. Internal Bridge operations: Via CommandsService.executeCommand
  *
  * Flow:
- * 1. Python Agent sends POST /api/v1/commands/execute
+ * 1. Request received (from Agent or external caller)
  * 2. Bridge routes command to connected Desktop TUI via WebSocket
  * 3. Desktop executes command and sends back result
- * 4. Bridge returns result to Python Agent
+ * 4. Bridge returns result to caller
  */
 @Controller('api/v1/commands')
 export class CommandsController {
