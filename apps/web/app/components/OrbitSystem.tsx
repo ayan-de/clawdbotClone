@@ -120,11 +120,10 @@ export default function OrbitSystem() {
               className="absolute bg-black p-2 rounded-full border border-white/20 transition-transform hover:scale-110"
               style={{
                 right: index === 0 ? '0' : undefined,
-                left: index === 1 ? '0' : undefined,
+                left: index === 1 ? '0' : (index === 2 ? '50%' : undefined),
                 top: index === 0 || index === 1 ? '50%' : 'auto',
                 bottom: index === 2 ? '0' : undefined,
-                left: index === 2 ? '50%' : undefined,
-                transform: 'translate(-50%, 50%)',
+                transform: index === 2 ? 'translate(-50%, 0)' : 'translate(-50%, -50%)',
                 boxShadow: `0 0 10px ${planet.color}40, 0 0 20px ${planet.color}20`,
               }}
             >
@@ -156,11 +155,10 @@ export default function OrbitSystem() {
               className="absolute bg-black p-2 rounded-full border border-white/20 transition-transform hover:scale-110"
               style={{
                 right: index === 0 ? '0' : undefined,
-                left: index === 1 ? '0' : undefined,
+                left: index === 1 ? '0' : (index === 2 ? '50%' : undefined),
                 top: index === 0 || index === 1 ? '50%' : 'auto',
                 bottom: index === 2 ? '0' : undefined,
-                left: index === 2 ? '50%' : undefined,
-                transform: 'translate(-50%, 50%)',
+                transform: index === 2 ? 'translate(-50%, 0)' : 'translate(-50%, -50%)',
                 boxShadow: `0 0 10px ${planet.color}40, 0 0 20px ${planet.color}20`,
               }}
             >
