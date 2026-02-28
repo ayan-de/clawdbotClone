@@ -9,6 +9,9 @@
   --background: #000000;
   --foreground: #ffffff;
   --star-color: #ffffff;
+  --nebula-purple: rgba(99, 42, 168, 0.15);
+  --nebula-blue: rgba(37, 99, 235, 0.12);
+  --nebula-pink: rgba(219, 39, 119, 0.08);
 }
 
 body {
@@ -21,6 +24,117 @@ body {
   overflow-x: hidden;
 }
 
+/* Vignette effect for space atmosphere */
+body::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at center, transparent 0%, transparent 50%, rgba(0, 0, 0, 0.6) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Nebula Background */
+.nebula {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: -3;
+  opacity: 0.6;
+}
+
+.nebula-cloud {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  animation: nebulaFloat 60s ease-in-out infinite;
+}
+
+.nebula-cloud:nth-child(1) {
+  width: 600px;
+  height: 400px;
+  top: 10%;
+  left: -10%;
+  background: var(--nebula-purple);
+  animation-delay: 0s;
+}
+
+.nebula-cloud:nth-child(2) {
+  width: 500px;
+  height: 350px;
+  top: 60%;
+  right: -5%;
+  background: var(--nebula-blue);
+  animation-delay: -20s;
+}
+
+.nebula-cloud:nth-child(3) {
+  width: 450px;
+  height: 300px;
+  top: 30%;
+  right: 20%;
+  background: var(--nebula-pink);
+  animation-delay: -40s;
+}
+
+.nebula-cloud:nth-child(4) {
+  width: 350px;
+  height: 250px;
+  bottom: 10%;
+  left: 30%;
+  background: var(--nebula-purple);
+  animation-delay: -30s;
+}
+
+@keyframes nebulaFloat {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(30px, -20px) scale(1.05);
+  }
+  50% {
+    transform: translate(-20px, 30px) scale(0.95);
+  }
+  75% {
+    transform: translate(-30px, -10px) scale(1.02);
+  }
+}
+
+/* Galaxy Spiral Effect */
+.galaxy-spiral {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 120vh;
+  height: 120vh;
+  pointer-events: none;
+  z-index: -2;
+  opacity: 0.15;
+  background:
+    radial-gradient(ellipse at center, transparent 20%, rgba(255, 255, 255, 0.03) 21%, transparent 22%),
+    radial-gradient(ellipse at center, transparent 30%, rgba(99, 102, 241, 0.04) 31%, transparent 32%),
+    radial-gradient(ellipse at center, transparent 40%, rgba(168, 85, 247, 0.03) 41%, transparent 42%),
+    radial-gradient(ellipse at center, transparent 50%, rgba(59, 130, 246, 0.03) 51%, transparent 52%);
+  animation: galaxyRotate 120s linear infinite;
+}
+
+@keyframes galaxyRotate {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
 /* Starfield Background */
 .starfield {
   position: fixed;
@@ -30,25 +144,62 @@ body {
   height: 100%;
   pointer-events: none;
   z-index: -1;
-  background: radial-gradient(circle at center, #111 0%, #000 100%);
+  background: radial-gradient(circle at center, #0a0a1a 0%, #000000 70%, #000000 100%);
+  will-change: transform;
+}
+
+/* Star Layers for Parallax */
+.star-layer {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  will-change: transform;
+}
+
+.star-layer--far {
+  z-index: 0;
+  transform: scale(0.8);
+}
+
+.star-layer--mid {
+  z-index: 1;
+  transform: scale(1);
+}
+
+.star-layer--near {
+  z-index: 2;
+  transform: scale(1.2);
 }
 
 .star {
   position: absolute;
-  background: white;
   border-radius: 50%;
-  opacity: 0.5;
   animation: twinkle var(--duration) infinite ease-in-out;
+  will-change: opacity, transform;
+}
+
+/* Star Color Variations */
+.star--white {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.star--blue {
+  background: rgba(147, 197, 253, 0.85);
+}
+
+.star--yellow {
+  background: rgba(254, 240, 138, 0.8);
+}
+
+.star--cyan {
+  background: rgba(103, 232, 249, 0.75);
 }
 
 @keyframes twinkle {
-
-  0%,
-  100% {
+  0%, 100% {
     opacity: 0.3;
     transform: scale(1);
   }
-
   50% {
     opacity: 1;
     transform: scale(1.2);
@@ -67,12 +218,126 @@ body {
       rgba(255, 255, 255, 0.02) 50%);
   background-size: 100% 4px;
   pointer-events: none;
-  z-index: 10;
+  z-index: 100;
+  opacity: 0.3;
 }
 
 /* CRT monitor flicker/glow */
 .tui-glow {
-  text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+  text-shadow: 0 0 5px rgba(255, 255, 255, 0.5), 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+/* Space glow for headings */
+.space-glow {
+  animation: spacePulse 3s ease-in-out infinite;
+}
+
+@keyframes spacePulse {
+  0%, 100% {
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.5), 0 0 20px rgba(147, 197, 253, 0.3);
+  }
+  50% {
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.8), 0 0 30px rgba(147, 197, 253, 0.5), 0 0 40px rgba(168, 85, 247, 0.3);
+  }
+}
+
+/* Gradient text effect */
+.gradient-text {
+  background: linear-gradient(135deg, #ffffff 0%, #93c5fd 50%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Ambient glow from center */
+.ambient-glow {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 150vw;
+  height: 150vh;
+  background: radial-gradient(circle at center, rgba(147, 197, 253, 0.03) 0%, rgba(168, 85, 247, 0.02) 30%, transparent 70%);
+  pointer-events: none;
+  z-index: -3;
+  animation: ambientPulse 8s ease-in-out infinite;
+}
+
+@keyframes ambientPulse {
+  0%, 100% {
+    opacity: 0.8;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.05);
+  }
+}
+
+/* Noise texture overlay */
+.noise-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: -4;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+}
+
+/* Terminal cursor animation */
+.cursor-blink {
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Status pulse for connected items */
+.status-pulse {
+  animation: statusPulse 2s ease-in-out infinite;
+}
+
+@keyframes statusPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+  }
+}
+
+/* Card hover lighting effect */
+.card-hover-light {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover-light:hover {
+  box-shadow:
+    0 0 30px rgba(147, 197, 253, 0.2),
+    0 0 60px rgba(168, 85, 247, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transform: translateY(-4px);
+}
+
+/* Orbit planet glow */
+.planet-glow {
+  box-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor;
+}
+
+/* Trail effect */
+.orbit-trail {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: linear-gradient(to right, currentColor, transparent);
+  opacity: 0.6;
+  filter: blur(2px);
 }
 
 pre {

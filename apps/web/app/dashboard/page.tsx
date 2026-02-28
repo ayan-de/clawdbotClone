@@ -55,8 +55,13 @@ function DashboardContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [stars, setStars] = useState<
-    { id: number; top: string; left: string; size: string; duration: string }[]
+    { id: number; top: string; left: string; size: string; duration: string; color: string }[]
   >([]);
+
+  // Mouse parallax state
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const starfieldRef = useRef<HTMLDivElement>(null);
+  const orbitRef = useRef<HTMLDivElement>(null);
 
   // Desktop token state
   const [desktopToken, setDesktopToken] = useState<DesktopTokenResponse | null>(null);
@@ -120,15 +125,26 @@ function DashboardContent() {
   }, [searchParams, user]);
 
   useEffect(() => {
-    // Initialize stars
-    const newStars = Array.from({ length: 150 }).map((_, i) => ({
+    // Initialize stars with color variations
+    const colors = ["star--white", "star--blue", "star--yellow", "star--cyan"];
+    const newStars = Array.from({ length: 200 }).map((_, i) => ({
       id: i,
       top: `${Math.random() * 100}%`,
       left: `${Math.random() * 100}%`,
       size: `${Math.random() * 2 + 1}px`,
       duration: `${Math.random() * 3 + 2}s`,
+      color: colors[Math.floor(Math.random() * colors.length)],
     }));
     setStars(newStars);
+
+    // Mouse move handler for parallax
+    const handleMouseMove = (e: MouseEvent) => {
+      const x = (e.clientX / window.innerWidth - 0.5) * 20;
+      const y = (e.clientY / window.innerHeight - 0.5) * 20;
+      setMousePosition({ x, y });
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
 
     // Fetch user data
     if (token) {
@@ -143,6 +159,8 @@ function DashboardContent() {
         setLoading(false);
       }
     }
+
+    return () => window.removeEventListener("mousemove", handleMouseMove);
   }, [token]);
 
   const fetchUserData = async (authToken: string) => {
@@ -488,25 +506,92 @@ function DashboardContent() {
 
   return (
     <div className="min-h-screen selection:bg-white selection:text-black font-mono overflow-hidden relative">
-      <div className="starfield">
-        {stars.map((star) => (
-          <div
-            key={star.id}
-            className="star"
-            style={{
-              top: star.top,
-              left: star.left,
-              width: star.size,
-              height: star.size,
-              "--duration": star.duration,
-            } as any}
-          />
-        ))}
+      {/* Nebula Background */}
+      <div className="nebula">
+        <div className="nebula-cloud"></div>
+        <div className="nebula-cloud"></div>
+        <div className="nebula-cloud"></div>
+        <div className="nebula-cloud"></div>
+      </div>
+
+      {/* Ambient Glow */}
+      <div className="ambient-glow"></div>
+
+      {/* Noise Overlay */}
+      <div className="noise-overlay"></div>
+
+      {/* Starfield Background with Parallax */}
+      <div
+        ref={starfieldRef}
+        className="starfield"
+        style={{
+          transform: `translate(${mousePosition.x * -0.5}px, ${mousePosition.y * -0.5}px)`,
+        }}
+      >
+        {/* Far Layer */}
+        <div className="star-layer star-layer--far">
+          {stars.slice(0, 50).map((star) => (
+            <div
+              key={star.id}
+              className={`star ${star.color}`}
+              style={{
+                top: star.top,
+                left: star.left,
+                width: star.size,
+                height: star.size,
+                "--duration": star.duration,
+              } as any}
+            />
+          ))}
+        </div>
+
+        {/* Mid Layer */}
+        <div className="star-layer star-layer--mid">
+          {stars.slice(50, 120).map((star) => (
+            <div
+              key={star.id}
+              className={`star ${star.color}`}
+              style={{
+                top: star.top,
+                left: star.left,
+                width: star.size,
+                height: star.size,
+                "--duration": star.duration,
+              } as any}
+            />
+          ))}
+        </div>
+
+        {/* Near Layer */}
+        <div className="star-layer star-layer--near">
+          {stars.slice(120, 200).map((star) => (
+            <div
+              key={star.id}
+              className={`star ${star.color}`}
+              style={{
+                top: star.top,
+                left: star.left,
+                width: star.size,
+                height: star.size,
+                "--duration": star.duration,
+              } as any}
+            />
+          ))}
+        </div>
       </div>
       <div className="scanlines" />
 
-      {/* Planetary System Background */}
-      <OrbitSystem />
+      {/* Planetary System Background with Parallax */}
+      <div
+        ref={orbitRef}
+        className="fixed inset-0 pointer-events-none"
+        style={{
+          transform: `translate(${mousePosition.x * 0.3}px, ${mousePosition.y * 0.3}px)`,
+          transition: "transform 0.1s ease-out",
+        }}
+      >
+        <OrbitSystem />
+      </div>
 
       {/* Header */}
       <Header
@@ -515,18 +600,18 @@ function DashboardContent() {
         onLogout={handleLogout}
       />
 
-      <main className="relative z-20 px-4 py-20 max-w-7xl mx-auto">
+      <main className="relative z-30 px-4 py-20 max-w-7xl mx-auto">
         {loading ? (
           <div className="flex items-center justify-center min-h-[50vh]">
-            <div className="text-white font-mono text-sm tracking-widest animate-pulse">
-              [ INITIALIZING_DASHBOARD... ]
+            <div className="text-white font-mono text-sm tracking-widest animate-pulse space-glow">
+              <span className="cursor-blink">●</span> [ INITIALIZING_DASHBOARD... ]
             </div>
           </div>
         ) : error ? (
           <div className="flex items-center justify-center min-h-[50vh]">
-            <div className="border-2 border-red-500/30 bg-black/90 p-8 text-center backdrop-blur-xl relative max-w-md">
+            <div className="border-2 border-red-500/30 bg-black/90 p-8 text-center backdrop-blur-xl relative max-w-md card-hover-light rounded-lg">
               <div className="absolute top-0 left-0 w-full h-1 bg-red-500/50"></div>
-              <p className="text-red-400 mb-6 font-mono text-sm uppercase tracking-tighter">{error}</p>
+              <p className="text-red-400 mb-6 font-mono text-sm uppercase tracking-tighter space-glow">{error}</p>
               <Button variant="outline" onClick={() => router.push("/")}>
                 Return::Home
               </Button>
@@ -537,9 +622,9 @@ function DashboardContent() {
             {/* Dashboard Header */}
             <div className="text-center space-y-4 mb-12">
               <div className="inline-block border border-white/20 px-3 py-1 text-[10px] uppercase tracking-[0.3em] bg-black/50 backdrop-blur-sm">
-                System::Dashboard
+                <span className="cursor-blink">●</span> System::Dashboard
               </div>
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tighter uppercase text-white">
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tighter uppercase space-glow">
                 Integrations Control Panel
               </h1>
               <p className="text-sm text-white/60 max-w-xl mx-auto">
@@ -550,27 +635,55 @@ function DashboardContent() {
 
             {/* User Profile Summary */}
             <div className="max-w-2xl mx-auto">
-              <div className="border-2 border-white/10 bg-black/90 p-6 relative backdrop-blur-xl">
-                <div className="flex items-center gap-6">
-                  {user.picture && (
-                    <img
-                      src={user.picture}
-                      alt={user.displayName || user.email}
-                      className="w-16 h-16 border-2 border-white/20 p-1"
-                      referrerPolicy="no-referrer"
-                    />
-                  )}
-                  <div>
-                    <h2 className="text-lg font-bold text-white tracking-tighter uppercase">
-                      {user.displayName ||
-                        `${user.firstName} ${user.lastName}`.trim() ||
-                        user.email}
-                    </h2>
-                    <p className="text-xs text-white/40 font-mono mt-1 italic">
-                      {user.email}
+              <div className="border-2 border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-xl p-6 relative card-hover-light rounded-lg">
+                <div className="flex items-center gap-6 justify-between">
+                  <div className="flex items-center gap-6">
+                    {user.picture && (
+                      <img
+                        src={user.picture}
+                        alt={user.displayName || user.email}
+                        className="w-16 h-16 border-2 border-white/20 p-1"
+                        referrerPolicy="no-referrer"
+                      />
+                    )}
+                    <div>
+                      <h2 className="text-lg font-bold text-white tracking-tighter uppercase">
+                        {user.displayName ||
+                          `${user.firstName} ${user.lastName}`.trim() ||
+                          user.email}
+                      </h2>
+                      <p className="text-xs text-white/40 font-mono mt-1 italic">
+                        {user.email}
+                      </p>
+                      <p className="text-[10px] text-white/20 mt-2 uppercase tracking-widest">
+                        ID: {user.id.substring(0, 8)}...
+                      </p>
+                    </div>
+                  </div>
+                  {/* Connected Tools Counter */}
+                  <div className="text-right">
+                    <p className="text-[10px] text-white/40 uppercase tracking-widest mb-1">
+                      Connected Tools
                     </p>
-                    <p className="text-[10px] text-white/20 mt-2 uppercase tracking-widest">
-                      ID: {user.id.substring(0, 8)}...
+                    <p className="text-2xl font-bold text-green-400">
+                      {[
+                        user.telegramUsername,
+                        user.emailAddress && user.emailAddress.includes("@gmail.com"),
+                        user.teamsEmail,
+                        user.jiraWorkspaceUrl,
+                        user.bitbucketUsername,
+                        user.githubUsername,
+                        user.cursorWorkspacePath,
+                      ].filter(Boolean).length}
+                      <span className="text-sm text-white/40 font-normal">/{[
+                        "Telegram",
+                        "Gmail",
+                        "Teams",
+                        "Jira",
+                        "Bitbucket",
+                        "GitHub",
+                        "Cursor",
+                      ].length}</span>
                     </p>
                   </div>
                 </div>
@@ -843,13 +956,13 @@ function DashboardContent() {
       {/* Desktop Token Modal */}
       {showTokenModal && desktopToken && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center px-4">
-          <div className="w-full max-w-2xl border-2 border-white/20 bg-black/95 p-8 relative shadow-[0_0_100px_rgba(255,255,255,0.2)]">
+          <div className="w-full max-w-2xl border-2 border-white/20 bg-gradient-to-br from-white/5 to-white/[0.02] p-8 relative shadow-[0_0_100px_rgba(255,255,255,0.2)] backdrop-blur-xl rounded-lg">
             {/* Header */}
             <div className="bg-white/10 px-4 py-2 flex items-center justify-between text-[10px] uppercase tracking-widest mb-8">
-              <span>Secure Connection Port</span>
+              <span className="space-glow">Secure Connection Port</span>
               <button
                 onClick={() => setShowTokenModal(false)}
-                className="text-white/40 hover:text-white transition-colors text-lg"
+                className="text-white/40 hover:text-white transition-colors text-lg cursor-blink"
               >
                 ×
               </button>
@@ -858,20 +971,20 @@ function DashboardContent() {
             {/* Token Display */}
             <div className="space-y-8">
               {/* Token */}
-              <div className="border border-white/20 p-6 bg-white/5 relative">
+              <div className="border border-white/20 p-6 bg-white/5 relative card-hover-light rounded-lg">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 mb-4">
                   Access_Key
                 </p>
-                <div className="font-mono text-sm text-green-400 break-all p-4 bg-black/40 border-l-2 border-green-500/50">
+                <div className="font-mono text-sm text-green-400 break-all p-4 bg-black/40 border-l-2 border-green-500/50 space-glow">
                   {desktopToken.token}
                 </div>
-                <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 animate-pulse"></div>
+                <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full status-pulse bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.6)]"></div>
               </div>
 
               {/* Expiration */}
               <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-white/40 font-mono">
                 <span>TTL_EXPIRY:</span>
-                <span className="text-yellow-500/80">{formatExpirationTime(desktopToken.expiresAt)}</span>
+                <span className="text-yellow-500/80 space-glow">{formatExpirationTime(desktopToken.expiresAt)}</span>
               </div>
 
               {/* Instructions */}
@@ -880,12 +993,12 @@ function DashboardContent() {
               </div>
 
               {/* Connect Command */}
-              <div className="border border-white/20 p-6 bg-black">
+              <div className="border border-white/20 p-6 bg-black card-hover-light rounded-lg">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 mb-4">
                   TUI_START_COMMAND
                 </p>
                 <div className="flex items-center gap-3">
-                  <span className="text-white animate-pulse">❯</span>
+                  <span className="text-white cursor-blink animate-pulse">❯</span>
                   <code className="text-xs text-white block break-all font-mono leading-loose">
                     {desktopToken.connectCommand}
                   </code>
@@ -899,8 +1012,8 @@ function DashboardContent() {
             </div>
 
             {/* Footer Decoration */}
-            <div className="absolute -bottom-2 -right-2 w-12 h-12 border-b-2 border-r-2 border-white/40 pointer-events-none"></div>
-            <div className="absolute -top-2 -left-2 w-12 h-12 border-t-2 border-l-2 border-white/40 pointer-events-none"></div>
+            <div className="absolute -bottom-2 -right-2 w-12 h-12 border-b-2 border-r-2 border-white/40 pointer-events-none rounded-br-lg"></div>
+            <div className="absolute -top-2 -left-2 w-12 h-12 border-t-2 border-l-2 border-white/40 pointer-events-none rounded-tl-lg"></div>
           </div>
         </div>
       )}
