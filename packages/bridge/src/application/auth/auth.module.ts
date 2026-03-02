@@ -7,6 +7,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { GmailController } from './gmailauth.controller';
+import { JiraAuthController } from './jiraauth.controller';
 import { GoogleOAuthStrategy, GmailOAuthStrategy, JwtStrategy, OAuthProviderFactory } from './strategies';
 import { JwtAuthGuard, OAuthAuthGuard } from './guards';
 import { User, OAuthAccount } from '../domain/entities';
@@ -33,7 +34,7 @@ import { User, OAuthAccount } from '../domain/entities';
       }),
     }),
   ],
-  controllers: [AuthController, GmailController],
+  controllers: [AuthController, GmailController, JiraAuthController],
   providers: [
     AuthService,
     GoogleOAuthStrategy,

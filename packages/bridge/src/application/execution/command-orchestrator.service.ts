@@ -190,10 +190,13 @@ export class CommandOrchestratorService implements ICommandExecutionService {
             );
 
             // 2. Handle based on agent's intent classification
-            if (agentResponse.intent === 'question' || agentResponse.intent === 'workflow' || agentResponse.intent === 'confirmation' || agentResponse.intent === 'email') {
+            if (agentResponse.intent === 'question' || agentResponse.intent === 'workflow' || agentResponse.intent === 'confirmation' || agentResponse.intent === 'email' || agentResponse.intent === 'jira' || agentResponse.intent === 'git' || agentResponse.intent === 'search') {
                 // Direct answer/summary from agent - send to platform
                 // For 'email' intent, the Python Agent handles the full workflow
                 // (draft, preview, send via Gmail API) and returns the result message
+                // For 'jira' intent, Python Agent handles Jira operations
+                // For 'git' intent, Python Agent handles Git operations
+                // For 'search' intent, Python Agent handles web search operations
                 const answer = agentResponse.messages.join('\n');
                 await this.messageRouter.sendToPlatform(
                     session.metadata?.platform || 'telegram',
