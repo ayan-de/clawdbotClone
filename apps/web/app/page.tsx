@@ -10,7 +10,7 @@ import Newsletter from "./components/Newsletter";
 export default function Home() {
   const [copied, setCopied] = useState(false);
   const [asciiLogo, setAsciiLogo] = useState("");
-  const command = "curl -fsSL https://orbit.ayande.xyz/install.sh | bash";
+  const command = "curl -fsSL https://ayande.xyz/install.sh | bash";
   const [stars, setStars] = useState<{ id: number; top: string; left: string; size: string; duration: string; color: string }[]>([]);
 
   // Mouse parallax state
@@ -188,7 +188,7 @@ export default function Home() {
                 <code className="whitespace-nowrap">
                   <span className="text-white font-bold">curl</span>
                   <span className="text-white/60 mx-2">-fsSL</span>
-                  <span className="text-white">https://orbit.ayande.xyz/install.sh</span>
+                  <span className="text-white">https://ayande.xyz/install.sh</span>
                   <span className="text-white/30 mx-2">|</span>
                   <span className="text-white italic">bash</span>
                 </code>
