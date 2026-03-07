@@ -836,7 +836,7 @@ start_services() {
     log_info "Starting Python Agent on port $AGENT_PORT..."
     cd "$INSTALL_DIR/orbit-agent"
     source .venv/bin/activate
-    nohup uvicorn main:app --host 0.0.0.0 --port $AGENT_PORT > "$INSTALL_DIR/logs/agent.log" 2>&1 &
+    nohup uvicorn src.main:app --host 0.0.0.0 --port $AGENT_PORT > "$INSTALL_DIR/logs/agent.log" 2>&1 &
     echo $! > "$INSTALL_DIR/logs/agent.pid"
     sleep 2
 
