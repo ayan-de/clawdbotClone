@@ -778,6 +778,57 @@ EOF
 # Start Services
 ################################################################################
 
+wait_for_service() {
+    local service_name=$1
+    local port=$2
+    local max_attempts=30
+    local attempt=1
+
+    log_info "Waiting for $service_name to be ready..."
+
+    while [ $attempt -le $max_attempts ]; do
+        if curl -s -o /dev/null -w "%{http_code}" http://localhost:$port 2>/dev/null | grep -q "200\|404"; then
+            log_success "$service_name is ready!"
+            return 0
+        fi
+
+        echo -n "."
+        sleep 2
+        attempt=$((attempt + 1))
+    done
+
+    echo ""
+    log_error "$service_name failed to start or is not responding"
+
+    # Show error logs
+    if [ -f "$INSTALL_DIR/logs/${service_name,,}.log" ]; then
+        echo ""
+        echo -e "${YELLOW}Last 20 lines of $service_name log:${NC}"
+        tail -20 "$INSTALL_DIR/logs/${service_name,,}.log"
+        echo ""
+    fi
+
+    return 1
+}
+
+check_service_running() {
+    local pid_file=$1
+    local service_name=$2
+
+    if [ -f "$pid_file" ]; then
+        local pid=$(cat "$pid_file")
+        if ps -p $pid > /dev/null 2>&1; then
+            return 0
+        else
+            log_error "$service_name process (PID: $pid) is not running!"
+            return 1
+        fi
+    else
+        log_error "$service_name PID file not found!"
+        return 1
+    fi
+}
+
 start_services() {
     log_info "Starting Orbit AI core services..."
 
@@ -787,21 +838,64 @@ start_services() {
     source .venv/bin/activate
     nohup uvicorn main:app --host 0.0.0.0 --port $AGENT_PORT > "$INSTALL_DIR/logs/agent.log" 2>&1 &
     echo $! > "$INSTALL_DIR/logs/agent.pid"
-    log_success "Python Agent started"
+    sleep 2
+
+    if check_service_running "$INSTALL_DIR/logs/agent.pid" "Python Agent"; then
+        log_success "Python Agent started"
+    else
+        log_error "Python Agent failed to start. Check logs: $INSTALL_DIR/logs/agent.log"
+        exit 1
+    fi
 
     # Start Bridge Server (always runs)
     log_info "Starting Bridge Server on port $BRIDGE_PORT..."
     cd "$INSTALL_DIR/clawdbotClone/packages/bridge"
     nohup pnpm start > "$INSTALL_DIR/logs/bridge.log" 2>&1 &
     echo $! > "$INSTALL_DIR/logs/bridge.pid"
-    log_success "Bridge Server started"
+    sleep 3
+
+    if check_service_running "$INSTALL_DIR/logs/bridge.pid" "Bridge Server"; then
+        log_success "Bridge Server started"
+    else
+        log_error "Bridge Server failed to start. Check logs: $INSTALL_DIR/logs/bridge.log"
+        exit 1
+    fi
+
+    # Wait for Bridge to be ready
+    if ! wait_for_service "Bridge Server" $BRIDGE_PORT; then
+        log_error "Bridge Server is not responding. Check logs: $INSTALL_DIR/logs/bridge.log"
+        echo ""
+        echo "You can try to fix the issue and restart services manually:"
+        echo "  cd $INSTALL_DIR/clawdbotClone/packages/bridge"
+        echo "  pnpm start"
+        echo ""
+        exit 1
+    fi
 
     # Start Web Dashboard (always runs)
     log_info "Starting Web Dashboard on port $WEB_PORT..."
     cd "$INSTALL_DIR/clawdbotClone/apps/web"
     nohup pnpm start > "$INSTALL_DIR/logs/web.log" 2>&1 &
     echo $! > "$INSTALL_DIR/logs/web.pid"
-    log_success "Web Dashboard started"
+    sleep 3
+
+    if check_service_running "$INSTALL_DIR/logs/web.pid" "Web Dashboard"; then
+        log_success "Web Dashboard started"
+    else
+        log_error "Web Dashboard failed to start. Check logs: $INSTALL_DIR/logs/web.log"
+        exit 1
+    fi
+
+    # Wait for Web Dashboard to be ready
+    if ! wait_for_service "Web Dashboard" $WEB_PORT; then
+        log_error "Web Dashboard is not responding. Check logs: $INSTALL_DIR/logs/web.log"
+        echo ""
+        echo "You can try to fix the issue and restart services manually:"
+        echo "  cd $INSTALL_DIR/clawdbotClone/apps/web"
+        echo "  pnpm start"
+        echo ""
+        exit 1
+    fi
 
     # DO NOT auto-start Desktop TUI - user needs to authorize via website first
     log_info "Desktop TUI waiting for authorization..."
@@ -917,6 +1011,12 @@ display_summary() {
     echo "  • Restart all:  kill \$(cat $INSTALL_DIR/logs/*.pid) && cd $INSTALL_DIR && restart_all_services"
     echo "  • View logs:    tail -f $INSTALL_DIR/logs/agent.log"
     echo ""
+    echo -e "${BLUE}Troubleshooting:${NC}"
+    echo "  • If Web Dashboard doesn't load: tail -f $INSTALL_DIR/logs/web.log"
+    echo "  • If Bridge fails: tail -f $INSTALL_DIR/logs/bridge.log"
+    echo "  • If Agent fails: tail -f $INSTALL_DIR/logs/agent.log"
+    echo "  • Check if ports are in use: lsof -i :$WEB_PORT :$BRIDGE_PORT :$AGENT_PORT"
+    echo ""
     echo -e "${BLUE}Documentation:${NC}"
     echo "  • Agent:    $INSTALL_DIR/orbit-agent/README.md"
     echo "  • Bridge:   $INSTALL_DIR/clawdbotClone/README.md"
@@ -979,7 +1079,21 @@ main() {
     echo ""
     log_info "Starting core services (Agent, Bridge, Web)..."
     start_services
-    sleep 3
+
+    # Final verification - check if web dashboard is accessible
+    echo ""
+    log_info "Verifying services are accessible..."
+
+    if curl -s -o /dev/null -w "%{http_code}" http://localhost:$WEB_PORT 2>/dev/null | grep -q "200\|404"; then
+        log_success "All services verified and accessible!"
+    else
+        log_warn "Web Dashboard might not be fully ready yet, but services are running."
+        echo ""
+        echo "If http://localhost:$WEB_PORT doesn't load, check the logs:"
+        echo "  tail -f $INSTALL_DIR/logs/web.log"
+        echo ""
+        read -p "Press Enter to continue (you can try accessing the dashboard manually)..."
+    fi
 
     # Prompt for Orbit token to start Desktop TUI
     prompt_orbit_token
