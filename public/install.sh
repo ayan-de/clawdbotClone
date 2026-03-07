@@ -903,8 +903,10 @@ display_summary() {
     echo -e "${BLUE}Quick Start:${NC}"
     echo "  1. Open browser: http://localhost:$WEB_PORT"
     echo "  2. Sign up or login"
-    echo "  3. Start Desktop TUI in a new terminal:"
-    echo "     cd $INSTALL_DIR/clawdbotClone/packages/desktop && pnpm dev"
+    echo "  3. Go to Settings / Desktop Authorization"
+    echo "  4. Connect to Telegram and get orbit token"
+    echo "  5. Start Desktop TUI in a new terminal:"
+    echo "     cd $INSTALL_DIR/clawdbotClone/packages/desktop && npm start -- --token <your-orbit-token>"
     echo ""
     echo -e "${YELLOW}IMPORTANT: Configure the following before using:${NC}"
     echo ""
@@ -948,14 +950,9 @@ display_summary() {
     echo -e "${NC}"
 }
 
-################################################################################
-# Save Version
-################################################################################
-
-save_version() {
-    echo "1.0.0" > "$INSTALL_DIR/.version"
-    log_success "Version saved: 1.0.0"
-}
+# NOTE: Version tracking is handled by user
+# The ~/.orbit/.version file is not created by the installer
+# Users manage their own version through git
 
 ################################################################################
 # Main Installation Flow
@@ -995,7 +992,7 @@ main() {
     echo -e "${YELLOW}========================================${NC}"
     echo ""
     log_info "Starting core services (Agent, Bridge, Web)..."
-    start_core_services
+    start_services
     sleep 3
 
     # Prompt for Orbit token to start Desktop TUI
@@ -1003,10 +1000,9 @@ main() {
 
     # Display summary after token prompt
     log_success "Core services running!"
-}
 
-    # Save version after successful installation
-    save_version
+    # Display final summary
+    display_summary
 }
 
 # Run main function
