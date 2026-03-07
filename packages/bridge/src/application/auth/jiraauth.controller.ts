@@ -37,8 +37,8 @@ export class JiraAuthController {
   @Public()
   async authorize(
     @Query('user_id') userId: string,
-    @Query('redirect_uri') redirectUri?: string,
     @Res() res: Response,
+    @Query('redirect_uri') redirectUri?: string,
   ) {
     // Get Jira OAuth settings
     const jiraClientId = this.configService.get<string>('JIRA_CLIENT_ID', '');
@@ -77,8 +77,8 @@ export class JiraAuthController {
   async callback(
     @Query('code') code: string,
     @Query('state') userId: string,
-    @Query('redirect_uri') redirectUri?: string,
     @Res() res: Response,
+    @Query('redirect_uri') redirectUri?: string,
   ) {
     if (!code) {
       return res.status(400).json({
