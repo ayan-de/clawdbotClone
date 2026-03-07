@@ -50,7 +50,6 @@ export interface ExecutedCommand {
  * - Signal handling for graceful/force kill
  */
 export class CommandHandler {
-export class CommandHandler {
   private activeProcesses = new Map<number, ChildProcess>();
   private workingDir: string;
   private outputCallbacks = new Map<number, (output: string) => void>();
