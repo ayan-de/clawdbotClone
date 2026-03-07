@@ -85,6 +85,11 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+log_silent() {
+    # Silent logging - writes to a hidden log file
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$INSTALL_DIR/install.log" 2>/dev/null || true
+}
+
 ################################################################################
 # Check Port Availability and Configure
 ################################################################################
@@ -680,99 +685,92 @@ EOF
 
     log_success "Environment files created"
 
-    echo ""
-    echo -e "${YELLOW}========================================${NC}"
-    echo -e "${YELLOW} IMPORTANT: Google OAuth HTTPS Requirement${NC}"
-    echo -e "${YELLOW}========================================${NC}"
-    echo ""
-    echo -e "${YELLOW}Google OAuth requires HTTPS callback URLs!${NC}"
-    echo ""
-    echo -e "${BLUE}Your current configuration uses HTTP:${NC}"
-    echo "  • Web URL: http://localhost:$WEB_PORT"
-    echo "  • Google OAuth callback: http://localhost:$WEB_PORT/api/auth/callback/google"
-    echo ""
-    echo -e "${YELLOW}This will cause 500 errors at Google Console!${NC}"
-    echo ""
-    echo -e "${BLUE}You have THREE options:${NC}"
-    echo ""
-    echo -e "${GREEN}Option 1: Use HTTPS Tunnel (Recommended for Development)${NC}"
-    echo "  • Expose localhost to HTTPS tunnel"
-    echo "  • Install ngrok: https://ngrok.com/download"
-    echo "  • Run: ngrok http $WEB_PORT"
-    echo "  • Get HTTPS URL from ngrok output (e.g., https://abc123.ngrok.io)"
-    echo "  • Add ngrok HTTPS URL to Google Console as callback"
-    echo "  • Update: $INSTALL_DIR/clawdbotClone/apps/web/.env.local"
-    echo "    Set: GOOGLE_REDIRECT_URI=https://abc123.ngrok.io/api/auth/callback/google"
-    echo ""
-    echo -e "${GREEN}Option 2: Use Production Domain${NC}"
-    echo "  • Deploy to production server with HTTPS"
-    echo "  • Use your domain in Google OAuth callback"
-    echo "  • No tunneling needed for production"
-    echo ""
-    echo -e "${GREEN}Option 3: Configure Google Client for HTTP (Not Recommended)${NC}"
-    echo "  • Google Console allows HTTP for localhost (127.0.0.1)"
-    echo "  • But this only works for exact IP 127.0.0.1"
-    echo "  • Does NOT work with localhost:$WEB_PORT"
-    echo "  • Not recommended for production"
-    echo ""
-    echo -e "${BLUE}Quick Setup with ngrok:${NC}"
-    echo "  1. Install: brew install ngrok (macOS) or from https://ngrok.com/download"
-    echo "  2. Run: ngrok http $WEB_PORT"
-    echo "  3. Copy ngrok HTTPS URL (e.g., https://abc123.ngrok.io)"
-    echo "  4. Update Google Console callback URL to ngrok URL"
-    echo "  5. Update .env.local: GOOGLE_REDIRECT_URI=https://abc123.ngrok.io/api/auth/callback/google"
-    echo "  6. Restart web: kill \$(cat $INSTALL_DIR/logs/web.pid) && cd $INSTALL_DIR/clawdbotClone/apps/web && pnpm start"
-    echo ""
-    echo -e "${YELLOW}After setup, Google OAuth will work!${NC}"
-    echo ""
+    # Save setup information to a log file (hidden from user)
+    cat > "$INSTALL_DIR/setup-notes.md" << 'EOF'
+# Orbit AI Setup Notes
+
+## Google OAuth HTTPS Requirement
+
+Google OAuth requires HTTPS callback URLs!
+
+Your current configuration uses HTTP:
+  • Web URL: http://localhost:8444
+  • Google OAuth callback: http://localhost:8444/api/auth/callback/google
+
+This will cause 500 errors at Google Console!
+
+You have THREE options:
+
+Option 1: Use HTTPS Tunnel (Recommended for Development)
+  • Expose localhost to HTTPS tunnel
+  • Install ngrok: https://ngrok.com/download
+  • Run: ngrok http 8444
+  • Get HTTPS URL from ngrok output (e.g., https://abc123.ngrok.io)
+  • Add ngrok HTTPS URL to Google Console as callback
+  • Update: ~/.orbit/clawdbotClone/apps/web/.env.local
+    Set: GOOGLE_REDIRECT_URI=https://abc123.ngrok.io/api/auth/callback/google
+
+Option 2: Use Production Domain
+  • Deploy to production server with HTTPS
+  • Use your domain in Google OAuth callback
+  • No tunneling needed for production
+
+Option 3: Configure Google Client for HTTP (Not Recommended)
+  • Google Console allows HTTP for localhost (127.0.0.1)
+  • But this only works for exact IP 127.0.0.1
+  • Does NOT work with localhost:8444
+  • Not recommended for production
+
+Quick Setup with ngrok:
+  1. Install: brew install ngrok (macOS) or from https://ngrok.com/download
+  2. Run: ngrok http 8444
+  3. Copy ngrok HTTPS URL (e.g., https://abc123.ngrok.io)
+  4. Update Google Console callback URL to ngrok URL
+  5. Update .env.local: GOOGLE_REDIRECT_URI=https://abc123.ngrok.io/api/auth/callback/google
+  6. Restart web: kill $(cat ~/.orbit/logs/web.pid) && cd ~/.orbit/clawdbotClone/apps/web && pnpm start
+
+After setup, Google OAuth will work!
+EOF
 }
 
 ################################################################################
-# Database Setup
+# Database Setup (Hidden from main output)
 ################################################################################
 
 setup_database() {
-    log_info "Database setup instructions..."
+    # Save database setup notes to a file (hidden from user)
+    cat > "$INSTALL_DIR/database-setup.md" << 'EOF'
+# Database Setup
 
-    echo ""
-    echo -e "${YELLOW}========================================${NC}"
-    echo -e "${YELLOW}DATABASE SETUP REQUIRED${NC}"
-    echo -e "${YELLOW}========================================${NC}"
-    echo ""
-    echo "You need to set up a PostgreSQL database. We recommend using Neon (free tier):"
-    echo ""
-    echo "1. Visit: https://console.neon.tech/"
-    echo "2. Create a free account and project"
-    echo "3. Copy the connection string"
-    echo ""
-    echo "Then update the following files:"
-    echo ""
-    echo "  • $INSTALL_DIR/orbit-agent/.env"
-    echo "    Set: DATABASE_URL=your-neon-connection-string"
-    echo ""
-    echo "  • $INSTALL_DIR/clawdbotClone/packages/bridge/.env"
-    echo "    Set: NEON_DATABASE_URL=your-neon-connection-string"
-    echo ""
-    echo "4. Run migrations (after configuring):"
-    echo "   cd $INSTALL_DIR/clawdbotClone/packages/bridge"
-    echo "   pnpm migration:run"
-    echo ""
+You need to set up a PostgreSQL database. We recommend using Neon (free tier):
 
-    read -p "Have you configured the database URL? (y/N): " -n 1 -r
-    echo ""
+1. Visit: https://console.neon.tech/
+2. Create a free account and project
+3. Copy the connection string
 
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        log_info "Running database migrations..."
-        cd "$INSTALL_DIR/clawdbotClone/packages/bridge"
-        if pnpm migration:run; then
-            log_success "Database migrations completed"
-        else
-            log_warn "Migration failed. Please run manually after configuring .env"
-        fi
+Then update the following files:
+
+  • ~/.orbit/orbit-agent/.env
+    Set: DATABASE_URL=your-neon-connection-string
+
+  • ~/.orbit/clawdbotClone/packages/bridge/.env
+    Set: NEON_DATABASE_URL=your-neon-connection-string
+
+4. Run migrations (after configuring):
+   cd ~/.orbit/clawdbotClone/packages/bridge
+   pnpm migration:run
+
+Note: Database setup is optional for initial testing but required for full functionality.
+EOF
+
+    # Check if database is already configured
+    if grep -q "your-neon-connection-string" "$INSTALL_DIR/orbit-agent/.env" 2>/dev/null; then
+        # Database not configured, silently skip for now
+        :
     else
-        log_warn "Skipping database setup. Run migrations manually after configuring:"
-        echo "  cd $INSTALL_DIR/clawdbotClone/packages/bridge"
-        echo "  pnpm migration:run"
+        # Database might be configured, try running migrations silently
+        cd "$INSTALL_DIR/clawdbotClone/packages/bridge"
+        pnpm migration:run > /dev/null 2>&1 || true
     fi
 }
 
@@ -823,7 +821,7 @@ prompt_orbit_token() {
     echo ""
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${GREEN}          Orbit Token Authorization${NC}"
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
     echo -e "${YELLOW}To start the Desktop TUI, you need to authorize it:${NC}"
     echo ""
@@ -845,12 +843,12 @@ prompt_orbit_token() {
         echo ""
         echo "You can start Desktop TUI later by running:"
         echo "  cd $INSTALL_DIR/clawdbotClone/packages/desktop"
-        echo "  npm start -- --token <your-orbit-token>"
+        echo "  pnpm start -- --token <your-orbit-token>"
         echo ""
         return 1
     fi
 
-    # Start Desktop TUI with the provided token
+    # Start Desktop TUI with provided token
     log_info "Starting Desktop TUI with token..."
     cd "$INSTALL_DIR/clawdbotClone/packages/desktop"
     pnpm start -- --token "$orbit_token" &
@@ -906,28 +904,13 @@ display_summary() {
     echo "  3. Go to Settings / Desktop Authorization"
     echo "  4. Connect to Telegram and get orbit token"
     echo "  5. Start Desktop TUI in a new terminal:"
-    echo "     cd $INSTALL_DIR/clawdbotClone/packages/desktop && npm start -- --token <your-orbit-token>"
+    echo "     cd $INSTALL_DIR/clawdbotClone/packages/desktop && pnpm start -- --token <your-orbit-token>"
     echo ""
-    echo -e "${YELLOW}IMPORTANT: Configure the following before using:${NC}"
-    echo ""
-    echo "1. Database Setup (Neon PostgreSQL recommended):"
-    echo "   • Get free DB at: https://console.neon.tech/"
-    echo "   • Update: $INSTALL_DIR/orbit-agent/.env"
-    echo "   • Update: $INSTALL_DIR/clawdbotClone/packages/bridge/.env"
-    echo "   • Run: cd $INSTALL_DIR/clawdbotClone/packages/bridge && pnpm migration:run"
-    echo ""
-    echo "2. API Keys (for AI functionality):"
-    echo "   • Update: $INSTALL_DIR/orbit-agent/.env"
-    echo "   • Set: OPENAI_API_KEY or ANTHROPIC_API_KEY"
-    echo ""
-    echo "3. OAuth Setup (for authentication):"
-    echo "   • Get credentials at: https://console.cloud.google.com/"
-    echo "   • Update: $INSTALL_DIR/clawdbotClone/packages/bridge/.env"
-    echo "   • Update: $INSTALL_DIR/clawdbotClone/apps/web/.env.local"
-    echo ""
-    echo "4. Telegram Bot (optional, for Telegram integration):"
-    echo "   • Create bot: https://t.me/BotFather"
-    echo "   • Update: $INSTALL_DIR/clawdbotClone/packages/bridge/.env"
+    echo -e "${YELLOW}Optional Configuration (for full functionality):${NC}"
+    echo "  • Database:    See $INSTALL_DIR/database-setup.md"
+    echo "  • API Keys:    Edit $INSTALL_DIR/orbit-agent/.env"
+    echo "  • OAuth:       See $INSTALL_DIR/setup-notes.md"
+    echo "  • Telegram:    Edit $INSTALL_DIR/clawdbotClone/packages/bridge/.env"
     echo ""
     echo -e "${BLUE}Service Management:${NC}"
     echo "  • Stop all:     kill \$(cat $INSTALL_DIR/logs/*.pid)"
@@ -942,8 +925,6 @@ display_summary() {
     echo -e "${BLUE}Updates:${NC}"
     echo "  • To update to latest version: curl -fsSL https://ayande.xyz/update.sh | bash"
     echo "  • Updates preserve your configuration and data"
-    echo ""
-    echo -e "${YELLOW}⚠️  Remember to configure your API keys and database before using!${NC}"
     echo ""
     echo -e "${CYAN}"
     display_logo
