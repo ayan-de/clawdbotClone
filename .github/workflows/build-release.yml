@@ -47,9 +47,9 @@ jobs:
           
           # Create start script
           cat > bridge-release/start_bridge.sh << 'EOF'
-#!/bin/bash
-node packages/bridge/dist/main.js
-EOF
+          #!/bin/bash
+          node packages/bridge/dist/main.js
+          EOF
           chmod +x bridge-release/start_bridge.sh
           
           tar -czf bridge-linux-x64.tar.gz -C bridge-release .
@@ -67,9 +67,9 @@ EOF
           
           # Create start script
           cat > desktop-release/start_desktop.sh << 'EOF'
-#!/bin/bash
-node packages/desktop/dist/index.js "$@"
-EOF
+          #!/bin/bash
+          node packages/desktop/dist/index.js "$@"
+          EOF
           chmod +x desktop-release/start_desktop.sh
           
           tar -czf desktop-linux-x64.tar.gz -C desktop-release .
