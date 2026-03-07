@@ -210,60 +210,235 @@ detect_os() {
 }
 
 ################################################################################
-# Dependency Checks
+# Dependency Checks and Installation
 ################################################################################
+
+install_git() {
+    log_info "Installing Git..."
+
+    if [[ "$OS_TYPE" == "macos" ]]; then
+        if command -v brew &>/dev/null; then
+            brew install git
+        else
+            log_error "Homebrew not found. Please install from https://brew.sh"
+            echo "  /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+            exit 1
+        fi
+    elif [[ "$OS_TYPE" == "linux" || "$OS_TYPE" == "wsl" ]]; then
+        sudo apt update
+        sudo apt install -y git
+    fi
+}
+
+install_python() {
+    log_info "Installing Python 3.10+..."
+
+    if [[ "$OS_TYPE" == "macos" ]]; then
+        if command -v brew &>/dev/null; then
+            brew install python@3.11
+        else
+            log_error "Homebrew not found. Please install from https://brew.sh"
+            exit 1
+        fi
+    elif [[ "$OS_TYPE" == "linux" || "$OS_TYPE" == "wsl" ]]; then
+        sudo apt update
+        sudo apt install -y software-properties-common
+
+        # Add deadsnakes PPA for Python 3.11
+        if [[ "$OS_TYPE" != "wsl" ]]; then
+            sudo add-apt-repository -y ppa:deadsnakes/ppa
+            sudo apt update
+        fi
+
+        # Install Python 3.11
+        sudo apt install -y python3.11 python3.11-venv python3.11-dev
+
+        # Set python3.11 as default if needed
+        if ! command -v python3.11 &>/dev/null; then
+            log_warn "Python 3.11 installation may have failed. Trying Python 3.10..."
+            sudo apt install -y python3.10 python3.10-venv python3.10-dev
+        fi
+    fi
+
+    # Verify installation
+    if command -v python3.11 &>/dev/null; then
+        log_success "Python 3.11 installed"
+    elif command -v python3.10 &>/dev/null; then
+        log_success "Python 3.10 installed"
+    else
+        log_error "Python installation failed. Please install manually."
+        exit 1
+    fi
+}
+
+install_nodejs() {
+    log_info "Installing Node.js 18+..."
+
+    if [[ "$OS_TYPE" == "macos" ]]; then
+        if command -v brew &>/dev/null; then
+            brew install node
+        else
+            log_error "Homebrew not found. Please install from https://brew.sh"
+            exit 1
+        fi
+    elif [[ "$OS_TYPE" == "linux" || "$OS_TYPE" == "wsl" ]]; then
+        # Install Node.js 20 LTS using NodeSource
+        log_info "Setting up Node.js repository..."
+
+        # Download and run NodeSource setup script
+        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+
+        # Install Node.js
+        sudo apt install -y nodejs
+    fi
+
+    # Verify installation
+    if command -v node &>/dev/null; then
+        local node_version=$(node -v)
+        log_success "Node.js $node_version installed"
+    else
+        log_error "Node.js installation failed. Please install manually."
+        exit 1
+    fi
+
+    # Verify npm
+    if command -v npm &>/dev/null; then
+        local npm_version=$(npm -v)
+        log_success "npm $npm_version installed"
+    else
+        log_error "npm installation failed. Please install manually."
+        exit 1
+    fi
+}
+
+install_pnpm() {
+    log_info "Installing pnpm..."
+
+    # npm is required to install pnpm
+    if ! command -v npm &>/dev/null; then
+        log_error "npm is not installed. Cannot install pnpm."
+        exit 1
+    fi
+
+    # Install pnpm using npm
+    npm install -g pnpm
+
+    # Verify installation
+    if command -v pnpm &>/dev/null; then
+        local pnpm_version=$(pnpm -v)
+        log_success "pnpm $pnpm_version installed"
+    else
+        log_error "pnpm installation failed. Please install manually."
+        exit 1
+    fi
+}
 
 check_dependencies() {
     log_info "Checking dependencies..."
 
-    local missing_deps=()
+    local needs_git=false
+    local needs_python=false
+    local needs_node=false
+    local needs_pnpm=false
 
     # Check git
     if ! command -v git &>/dev/null; then
-        missing_deps+=("git")
+        log_warn "Git not found, will install..."
+        needs_git=true
+    else
+        local git_version=$(git --version)
+        log_info "✓ $git_version"
     fi
 
     # Check Python 3.10+
     if ! command -v python3 &>/dev/null; then
-        missing_deps+=("python3")
-    elif ! python3 -c "import sys; exit(0 if sys.version_info >= (3, 10) else exit(1))" 2>/dev/null; then
-        missing_deps+=("python3.10+")
+        log_warn "Python 3 not found, will install..."
+        needs_python=true
+    else
+        if ! python3 -c "import sys; exit(0 if sys.version_info >= (3, 10) else exit(1))" 2>/dev/null; then
+            local py_version=$(python3 --version)
+            log_warn "$py_version found, but Python 3.10+ is required. Will install..."
+            needs_python=true
+        else
+            local py_version=$(python3 --version)
+            log_info "✓ $py_version"
+        fi
     fi
 
     # Check Node.js
     if ! command -v node &>/dev/null; then
-        missing_deps+=("nodejs")
+        log_warn "Node.js not found, will install..."
+        needs_node=true
+    else
+        local node_version=$(node -v)
+        # Check if Node.js is 18+ (LTS)
+        if ! node -e "process.exit(process.version.split('.')[0].slice(1) >= 18)" 2>/dev/null; then
+            log_warn "$node_version found, but Node.js 18+ is required. Will install..."
+            needs_node=true
+        else
+            log_info "✓ Node.js $node_version"
+        fi
     fi
 
     # Check npm
     if ! command -v npm &>/dev/null; then
-        missing_deps+=("npm")
+        log_warn "npm not found (will be installed with Node.js)..."
+        needs_node=true
+    else
+        local npm_version=$(npm -v)
+        log_info "✓ npm $npm_version"
     fi
 
-    # Check pnpm (required for monorepo)
+    # Check pnpm
     if ! command -v pnpm &>/dev/null; then
-        missing_deps+=("pnpm")
+        log_warn "pnpm not found, will install..."
+        needs_pnpm=true
+    else
+        local pnpm_version=$(pnpm -v)
+        log_info "✓ pnpm $pnpm_version"
     fi
 
-    if [ ${#missing_deps[@]} -ne 0 ]; then
-        log_error "Missing dependencies: ${missing_deps[*]}"
-        echo ""
-        log_info "Please install missing dependencies:"
-        echo ""
-        if [[ "$OS_TYPE" == "macos" ]]; then
-            echo "  brew install git python@3.11 node pnpm"
-        elif [[ "$OS_TYPE" == "linux" || "$OS_TYPE" == "wsl" ]]; then
-            echo "  # Install Node.js 18+"
-            echo "  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -"
-            echo "  sudo apt install -y git python3.11 python3.11-venv nodejs"
-            echo ""
-            echo "  # Install pnpm"
-            echo "  npm install -g pnpm"
-        fi
+    # Install missing dependencies
+    if [ "$needs_git" = true ]; then
+        install_git
+    fi
+
+    if [ "$needs_python" = true ]; then
+        install_python
+    fi
+
+    if [ "$needs_node" = true ]; then
+        install_nodejs
+    fi
+
+    if [ "$needs_pnpm" = true ]; then
+        install_pnpm
+    fi
+
+    # Final verification
+    log_info "Verifying all dependencies..."
+
+    if ! command -v git &>/dev/null; then
+        log_error "Git installation failed"
         exit 1
     fi
 
-    log_success "All dependencies installed"
+    if ! python3 -c "import sys; exit(0 if sys.version_info >= (3, 10) else exit(1))" 2>/dev/null; then
+        log_error "Python 3.10+ installation failed"
+        exit 1
+    fi
+
+    if ! command -v node &>/dev/null; then
+        log_error "Node.js installation failed"
+        exit 1
+    fi
+
+    if ! command -v pnpm &>/dev/null; then
+        log_error "pnpm installation failed"
+        exit 1
+    fi
+
+    log_success "All dependencies installed and verified!"
 }
 
 ################################################################################
