@@ -18,6 +18,19 @@ log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
+display_logo() {
+    echo -e "${CYAN}"
+    cat << 'EOF'
+ ██████╗ ██████╗ ██████╗ ██╗████████╗
+██╔═══██╗██╔══██╗██╔══██╗██║╚══██╔══╝
+██║   ██║██████╔╝██████╔╝██║   ██║   
+██║   ██║██╔══██╗██╔══██╗██║   ██║   
+╚██████╔╝██║  ██║██████╔╝██║   ██║   
+ ╚═════╝ ╚═╝  ╚═╝╚═════╝ ╚═╝   ╚═╝   
+EOF
+    echo -e "${NC}"
+}
+
 INSTALL_DIR="$HOME/.orbit"
 AGENT_REPO="https://github.com/ayan-de/orbit-agent"
 CODE_REPO="https://github.com/ayan-de/clawdbotClone"
@@ -41,6 +54,10 @@ case "$ARCH" in
 esac
 
 log_info "Detected platform: $PLATFORM ($ARCH)"
+
+# Clear and show logo
+clear
+display_logo
 
 # Setup directories
 mkdir -p "$INSTALL_DIR"
