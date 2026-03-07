@@ -670,7 +670,7 @@ NEXT_PUBLIC_DESKTOP_URL=http://localhost:$DESKTOP_PORT
 # Google OAuth (for authentication)
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your-google-client-secret
-GOOGLE_REDIRECT_URI=http://localhost:3001/api/auth/callback/google
+GOOGLE_REDIRECT_URI=http://localhost:$WEB_PORT/api/auth/callback/google
 
 # JWT Secret (must match Bridge JWT_SECRET)
 JWT_SECRET=generate-secure-random-string-at-least-32-characters
@@ -679,6 +679,52 @@ EOF
     fi
 
     log_success "Environment files created"
+
+    echo ""
+    echo -e "${YELLOW}========================================${NC}"
+    echo -e "${YELLOW} IMPORTANT: Google OAuth HTTPS Requirement${NC}"
+    echo -e "${YELLOW}========================================${NC}"
+    echo ""
+    echo -e "${YELLOW}Google OAuth requires HTTPS callback URLs!${NC}"
+    echo ""
+    echo -e "${BLUE}Your current configuration uses HTTP:${NC}"
+    echo "  • Web URL: http://localhost:$WEB_PORT"
+    echo "  • Google OAuth callback: http://localhost:$WEB_PORT/api/auth/callback/google"
+    echo ""
+    echo -e "${YELLOW}This will cause 500 errors at Google Console!${NC}"
+    echo ""
+    echo -e "${BLUE}You have THREE options:${NC}"
+    echo ""
+    echo -e "${GREEN}Option 1: Use HTTPS Tunnel (Recommended for Development)${NC}"
+    echo "  • Expose localhost to HTTPS tunnel"
+    echo "  • Install ngrok: https://ngrok.com/download"
+    echo "  • Run: ngrok http $WEB_PORT"
+    echo "  • Get HTTPS URL from ngrok output (e.g., https://abc123.ngrok.io)"
+    echo "  • Add ngrok HTTPS URL to Google Console as callback"
+    echo "  • Update: $INSTALL_DIR/clawdbotClone/apps/web/.env.local"
+    echo "    Set: GOOGLE_REDIRECT_URI=https://abc123.ngrok.io/api/auth/callback/google"
+    echo ""
+    echo -e "${GREEN}Option 2: Use Production Domain${NC}"
+    echo "  • Deploy to production server with HTTPS"
+    echo "  • Use your domain in Google OAuth callback"
+    echo "  • No tunneling needed for production"
+    echo ""
+    echo -e "${GREEN}Option 3: Configure Google Client for HTTP (Not Recommended)${NC}"
+    echo "  • Google Console allows HTTP for localhost (127.0.0.1)"
+    echo "  • But this only works for exact IP 127.0.0.1"
+    echo "  • Does NOT work with localhost:$WEB_PORT"
+    echo "  • Not recommended for production"
+    echo ""
+    echo -e "${BLUE}Quick Setup with ngrok:${NC}"
+    echo "  1. Install: brew install ngrok (macOS) or from https://ngrok.com/download"
+    echo "  2. Run: ngrok http $WEB_PORT"
+    echo "  3. Copy ngrok HTTPS URL (e.g., https://abc123.ngrok.io)"
+    echo "  4. Update Google Console callback URL to ngrok URL"
+    echo "  5. Update .env.local: GOOGLE_REDIRECT_URI=https://abc123.ngrok.io/api/auth/callback/google"
+    echo "  6. Restart web: kill \$(cat $INSTALL_DIR/logs/web.pid) && cd $INSTALL_DIR/clawdbotClone/apps/web && pnpm start"
+    echo ""
+    echo -e "${YELLOW}After setup, Google OAuth will work!${NC}"
+    echo ""
 }
 
 ################################################################################
@@ -735,9 +781,9 @@ setup_database() {
 ################################################################################
 
 start_services() {
-    log_info "Starting Orbit AI services..."
+    log_info "Starting Orbit AI core services..."
 
-    # Start Python Agent
+    # Start Python Agent (always runs)
     log_info "Starting Python Agent on port $AGENT_PORT..."
     cd "$INSTALL_DIR/orbit-agent"
     source .venv/bin/activate
@@ -745,24 +791,95 @@ start_services() {
     echo $! > "$INSTALL_DIR/logs/agent.pid"
     log_success "Python Agent started"
 
-    # Start Bridge Server
+    # Start Bridge Server (always runs)
     log_info "Starting Bridge Server on port $BRIDGE_PORT..."
     cd "$INSTALL_DIR/clawdbotClone/packages/bridge"
     nohup pnpm start > "$INSTALL_DIR/logs/bridge.log" 2>&1 &
     echo $! > "$INSTALL_DIR/logs/bridge.pid"
     log_success "Bridge Server started"
 
-    # Start Web Dashboard
+    # Start Web Dashboard (always runs)
     log_info "Starting Web Dashboard on port $WEB_PORT..."
     cd "$INSTALL_DIR/clawdbotClone/apps/web"
     nohup pnpm start > "$INSTALL_DIR/logs/web.log" 2>&1 &
     echo $! > "$INSTALL_DIR/logs/web.pid"
     log_success "Web Dashboard started"
 
-    # Note: Desktop TUI should be started manually by user
-    log_info "Desktop TUI can be started manually with:"
-    echo "  cd $INSTALL_DIR/clawdbotClone/packages/desktop"
-    echo "  pnpm dev"
+    # DO NOT auto-start Desktop TUI - user needs to authorize via website first
+    log_info "Desktop TUI waiting for authorization..."
+    log_info "Core services are running:"
+    echo ""
+    echo "  • Python Agent:   http://localhost:$AGENT_PORT"
+    echo "  • Bridge Server:  http://localhost:$BRIDGE_PORT"
+    echo "  • Web Dashboard:  http://localhost:$WEB_PORT"
+    echo ""
+}
+
+################################################################################
+# Orbit Token Prompt and Desktop TUI Startup
+################################################################################
+
+prompt_orbit_token() {
+    echo ""
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GREEN}          Orbit Token Authorization${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo -e "${YELLOW}To start the Desktop TUI, you need to authorize it:${NC}"
+    echo ""
+    echo -e "${YELLOW}Please follow these steps:${NC}"
+    echo ""
+    echo "  1. Open browser: http://localhost:$WEB_PORT"
+    echo "  2. Sign up or login"
+    echo "  3. Go to Settings / Desktop Authorization"
+    echo "  4. Connect to Telegram (or your chat platform)"
+    echo "  5. Enter your username"
+    echo "  6. Click 'Authorize Desktop'"
+    echo "  7. Copy the orbit token (e.g., 'orbit-sfsdfs')"
+    echo ""
+    echo -e "${YELLOW}Paste your orbit token below (or press Enter to skip):${NC}"
+    read -p "Orbit Token: " orbit_token
+
+    if [ -z "$orbit_token" ]; then
+        log_warn "No token provided. Skipping Desktop TUI startup."
+        echo ""
+        echo "You can start Desktop TUI later by running:"
+        echo "  cd $INSTALL_DIR/clawdbotClone/packages/desktop"
+        echo "  npm start -- --token <your-orbit-token>"
+        echo ""
+        return 1
+    fi
+
+    # Start Desktop TUI with the provided token
+    log_info "Starting Desktop TUI with token..."
+    cd "$INSTALL_DIR/clawdbotClone/packages/desktop"
+    pnpm start -- --token "$orbit_token" &
+    DESKTOP_PID=$!
+    echo $DESKTOP_PID > "$INSTALL_DIR/logs/desktop.pid"
+
+    log_success "Desktop TUI started with token!"
+    echo ""
+    echo -e "${GREEN}══════════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}          All Services Running!${NC}"
+    echo -e "${GREEN}══════════════════════════════════════════════════════${NC}"
+    echo ""
+    echo "Services:"
+    echo "  • Python Agent:   http://localhost:$AGENT_PORT"
+    echo "  • Bridge Server:  http://localhost:$BRIDGE_PORT"
+    echo "  • Web Dashboard:  http://localhost:$WEB_PORT"
+    echo "  • Desktop TUI:    Running (in terminal with token)"
+    echo ""
+    echo -e "${BLUE}You can now type commands in the Desktop TUI!${NC}"
+    echo ""
+    echo "Useful Commands:"
+    echo "  • /start - Show help"
+    echo "  • /status - Show system status"
+    echo ""
+    echo -e "${BLUE}To stop all services:${NC}"
+    echo "  kill \$(cat $INSTALL_DIR/logs/*.pid)"
+    echo ""
+
+    return 0
 }
 
 ################################################################################
@@ -871,36 +988,22 @@ main() {
     setup_environment
     setup_database
 
-    # Ask to start services
+    # Start core services (Agent + Bridge + Web)
     echo ""
-    read -p "Start all services now? (y/N): " -n 1 -r
+    echo -e "${YELLOW}========================================${NC}"
+    echo -e "${YELLOW}  Starting Core Services  ${NC}"
+    echo -e "${YELLOW}========================================${NC}"
     echo ""
+    log_info "Starting core services (Agent, Bridge, Web)..."
+    start_core_services
+    sleep 3
 
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        start_services
-        sleep 3
-        display_summary
-    else
-        log_info "Services not started. Start them manually:"
-        echo ""
-        echo "  # Start Python Agent"
-        echo "  cd $INSTALL_DIR/orbit-agent"
-        echo "  source .venv/bin/activate"
-        echo "  uvicorn main:app --host 0.0.0.0 --port $AGENT_PORT"
-        echo ""
-        echo "  # Start Bridge Server"
-        echo "  cd $INSTALL_DIR/clawdbotClone/packages/bridge"
-        echo "  pnpm start"
-        echo ""
-        echo "  # Start Web Dashboard"
-        echo "  cd $INSTALL_DIR/clawdbotClone/apps/web"
-        echo "  pnpm start"
-        echo ""
-        echo "  # Start Desktop TUI (in separate terminal)"
-        echo "  cd $INSTALL_DIR/clawdbotClone/packages/desktop"
-        echo "  pnpm dev"
-        echo ""
-    fi
+    # Prompt for Orbit token to start Desktop TUI
+    prompt_orbit_token
+
+    # Display summary after token prompt
+    log_success "Core services running!"
+}
 
     # Save version after successful installation
     save_version
