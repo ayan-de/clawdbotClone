@@ -38,7 +38,6 @@ jobs:
         run: |
           pnpm --filter @orbit/bridge deploy bridge-release
           cd bridge-release
-          # Update start script in package.json to use the built dist
           npm pkg set scripts.start="node dist/main.js"
           
           # Create start_bridge.sh for PM2 compatibility
@@ -56,8 +55,8 @@ jobs:
         run: |
           pnpm --filter @orbit/desktop deploy desktop-release
           cd desktop-release
-          # Update start script in package.json to use the built dist
-          npm pkg set scripts.start="node dist/index.js"
+          # Use tsx for the desktop as it's ESM and has missing extensions in tsc output
+          npm pkg set scripts.start="npx tsx dist/index.js"
           
           # Create start_desktop.sh
           cat > start_desktop.sh << 'EOF'

@@ -141,7 +141,7 @@ echo "2. Authorize and copy your Orbit Token"
 echo ""
 
 while true; do
-    read -p "Paste your Orbit Token: " orbit_token
+    read -p "Paste your Orbit Token: " orbit_token < /dev/tty
     if [ -n "$orbit_token" ]; then
         log_info "Starting Desktop TUI..."
         cd "$INSTALL_DIR/desktop"
