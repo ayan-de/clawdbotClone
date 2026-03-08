@@ -175,6 +175,8 @@ EOF
     pm2 start ecosystem.config.js
     pm2 save || true
     log_success "Services started via PM2"
+    
+    log_info "Initializing services (this may take a minute for first-run dependencies)..."
 fi
 # 5. Launch TUI
 echo ""
