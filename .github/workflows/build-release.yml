@@ -36,43 +36,39 @@ jobs:
 
       - name: Prepare Bridge Archive
         run: |
-          mkdir -p bridge-release/packages/bridge
-          mkdir -p bridge-release/packages/common
-          cp -r packages/bridge/dist bridge-release/packages/bridge/
-          cp -r packages/bridge/package.json bridge-release/packages/bridge/
-          cp -r packages/common/dist bridge-release/packages/common/
-          cp -r packages/common/package.json bridge-release/packages/common/
-          cp -r node_modules bridge-release/
-          cp package.json pnpm-workspace.yaml bridge-release/
+          pnpm --filter @orbit/bridge deploy bridge-release
+          cd bridge-release
+          # Update start script in package.json to use the built dist
+          npm pkg set scripts.start="node dist/main.js"
           
-          # Create start script
-          cat > bridge-release/start_bridge.sh << 'EOF'
+          # Create start_bridge.sh for PM2 compatibility
+          cat > start_bridge.sh << 'EOF'
           #!/bin/bash
-          node packages/bridge/dist/main.js
+          SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+          cd "$SCRIPT_DIR"
+          npm start
           EOF
-          chmod +x bridge-release/start_bridge.sh
+          chmod +x start_bridge.sh
           
-          tar -czf bridge-linux-x64.tar.gz -C bridge-release .
+          tar -czf ../bridge-linux-x64.tar.gz .
 
       - name: Prepare Desktop Archive
         run: |
-          mkdir -p desktop-release/packages/desktop
-          mkdir -p desktop-release/packages/common
-          cp -r packages/desktop/dist desktop-release/packages/desktop/
-          cp -r packages/desktop/package.json desktop-release/packages/desktop/
-          cp -r packages/common/dist desktop-release/packages/common/
-          cp -r packages/common/package.json desktop-release/packages/common/
-          cp -r node_modules desktop-release/
-          cp package.json pnpm-workspace.yaml desktop-release/
+          pnpm --filter @orbit/desktop deploy desktop-release
+          cd desktop-release
+          # Update start script in package.json to use the built dist
+          npm pkg set scripts.start="node dist/index.js"
           
-          # Create start script
-          cat > desktop-release/start_desktop.sh << 'EOF'
+          # Create start_desktop.sh
+          cat > start_desktop.sh << 'EOF'
           #!/bin/bash
-          node packages/desktop/dist/index.js "$@"
+          SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+          cd "$SCRIPT_DIR"
+          npm start -- "$@"
           EOF
-          chmod +x desktop-release/start_desktop.sh
+          chmod +x start_desktop.sh
           
-          tar -czf desktop-linux-x64.tar.gz -C desktop-release .
+          tar -czf ../desktop-linux-x64.tar.gz .
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4

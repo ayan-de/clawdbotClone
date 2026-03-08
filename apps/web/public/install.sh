@@ -139,14 +139,24 @@ echo -e "${YELLOW}To start the Desktop TUI, you need to authorize it:${NC}"
 echo "1. Go to https://ayande.xyz/settings/desktop"
 echo "2. Authorize and copy your Orbit Token"
 echo ""
-read -p "Paste your Orbit Token: " orbit_token
 
-if [ -n "$orbit_token" ]; then
-    log_info "Starting Desktop TUI..."
-    cd "$INSTALL_DIR/desktop" && ./start_desktop.sh --token "$orbit_token"
-else
-    log_warn "Manual start: cd $INSTALL_DIR/desktop && ./start_desktop.sh --token <TOKEN>"
-fi
+while true; do
+    read -p "Paste your Orbit Token: " orbit_token
+    if [ -n "$orbit_token" ]; then
+        log_info "Starting Desktop TUI..."
+        cd "$INSTALL_DIR/desktop"
+        # The user specifically requested 'npm start -- --token <token>'
+        # We assume pnpm/npm is available since the apps rely on it.
+        if command -v pnpm &>/dev/null; then
+            pnpm start -- --token "$orbit_token"
+        else
+            npm start -- --token "$orbit_token"
+        fi
+        break
+    else
+        log_warn "Token is required to start the Desktop TUI. Please paste your token."
+    fi
+done
 
-log_success "Orbit AI v2.0 installation complete!"
+log_success "Orbit AI installation complete!"
 rm -f *.tar.gz
