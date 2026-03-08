@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ################################################################################
-# Orbit AI - Production Installer v2.0.0 (Prebuilt Release)
+# Orbit AI - Production Installer v2.1.0 (Prebuilt Release with Neon DB)
 ################################################################################
 
 set -euo pipefail
@@ -111,48 +111,8 @@ log_info "Configuring Orbit AI..."
 JWT_SECRET=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 32 ; echo '')
 ENCRYPTION_KEY=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 32 ; echo '')
 
-# Database Setup
-printf "${YELLOW}Database Setup:${NC} Use local PostgreSQL? (y/n) [y]: "
-read -r use_local < /dev/tty
-use_local=${use_local:-y}
-
-if [[ "$use_local" == "y" ]]; then
-    # Check if postgres is running
-    if ! pg_isready &>/dev/null; then
-        log_warn "PostgreSQL is not running."
-        printf "Attempt to start postgresql service? (y/n) [y]: "
-        read -r start_pg < /dev/tty
-        start_pg=${start_pg:-y}
-        if [[ "$start_pg" == "y" ]]; then
-            sudo systemctl start postgresql || sudo service postgresql start || log_error "Failed to start postgresql. Please start it manually."
-        fi
-    fi
-
-    # Database details
-    DB_USER="postgres"
-    DB_PASS="postgres"
-    DB_HOST="localhost"
-    BRIDGE_DB="orbit_bridge"
-    AGENT_DB="orbit_agent"
-
-    log_info "Ensuring databases exist..."
-    if command -v psql &>/dev/null; then
-        # Try creating as current user, then with sudo -u postgres
-        psql -U "$DB_USER" -c "CREATE DATABASE $BRIDGE_DB;" 2>/dev/null || \
-        sudo -u postgres psql -c "CREATE DATABASE $BRIDGE_DB;" 2>/dev/null || true
-        
-        psql -U "$DB_USER" -c "CREATE DATABASE $AGENT_DB;" 2>/dev/null || \
-        sudo -u postgres psql -c "CREATE DATABASE $AGENT_DB;" 2>/dev/null || true
-    fi
-    
-    BRIDGE_DB_URL="postgresql://$DB_USER:$DB_PASS@$DB_HOST:5432/$BRIDGE_DB"
-    AGENT_DB_URL="postgresql+asyncpg://$DB_USER:$DB_PASS@$DB_HOST:5432/$AGENT_DB"
-else
-    printf "Enter your Bridge PostgreSQL URL: "
-    read -r BRIDGE_DB_URL < /dev/tty
-    printf "Enter your Agent Async PostgreSQL URL (postgresql+asyncpg://...): "
-    read -r AGENT_DB_URL < /dev/tty
-fi
+# Hardcoded Neon Database URL (shared across all installations)
+NEON_DB_URL="postgresql://neondb_owner:npg_jp9VWytRaD7f@ep-autumn-cloud-aiyxnb80-pooler.c-4.us-east-1.aws.neon.tech/neondb"
 
 # Create Bridge .env
 cat > "$INSTALL_DIR/bridge/.env" << EOF
@@ -160,7 +120,7 @@ APP_NAME=OrbitBridge
 PORT=8443
 NODE_ENV=production
 FRONTEND_URL=https://ayande.xyz
-DATABASE_URL="$BRIDGE_DB_URL"
+DATABASE_URL="$NEON_DB_URL"
 DB_SYNCHRONIZE=true
 DB_SSL=false
 JWT_SECRET="$JWT_SECRET"
@@ -171,7 +131,7 @@ EOF
 cat > "$INSTALL_DIR/agent/.env" << EOF
 PORT=8888
 DEBUG=false
-DATABASE_URL="$AGENT_DB_URL"
+DATABASE_URL="postgresql+asyncpg://neondb_owner:npg_jp9VWytRaD7f@ep-autumn-cloud-aiyxnb80-pooler.c-4.us-east-1.aws.neon.tech/neondb"
 BRIDGE_URL=http://localhost:8443
 BRIDGE_API_KEY="$JWT_SECRET"
 ENCRYPTION_KEY="$ENCRYPTION_KEY"
