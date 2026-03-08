@@ -13,7 +13,7 @@ export const AppDataSource = new DataSource({
   type: 'postgres',
 
   // Use Neon URL if available, otherwise build from individual config
-  url: process.env.NEON_DATABASE_URL ||
+  url: process.env.DATABASE_URL || process.env.NEON_DATABASE_URL ||
     `postgresql://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
 
   entities: [__dirname + '/../../**/*.entity{.ts,.js}'],

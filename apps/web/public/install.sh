@@ -107,8 +107,9 @@ tar -xzf desktop.tar.gz -C desktop
 # 4. Configuration
 log_info "Configuring Orbit AI..."
 
-# Generate JWT Secret if needed
+# Generate Secrets
 JWT_SECRET=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 32 ; echo '')
+ENCRYPTION_KEY=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 32 ; echo '')
 
 # Database Setup
 printf "${YELLOW}Database Setup:${NC} Use local PostgreSQL? (y/n) [y]: "
@@ -116,15 +117,38 @@ read -r use_local < /dev/tty
 use_local=${use_local:-y}
 
 if [[ "$use_local" == "y" ]]; then
-    DB_URL="postgresql://postgres:postgres@localhost:5432/orbit_bridge"
-    log_info "Using default local PostgreSQL URL"
-    log_warn "Ensuring database 'orbit_bridge' exists..."
-    if command -v psql &>/dev/null; then
-        psql -U postgres -c "CREATE DATABASE orbit_bridge;" 2>/dev/null || true
+    # Check if postgres is running
+    if ! pg_isready &>/dev/null; then
+        log_warn "PostgreSQL is not running."
+        printf "Attempt to start postgresql service? (y/n) [y]: "
+        read -r start_pg < /dev/tty
+        start_pg=${start_pg:-y}
+        if [[ "$start_pg" == "y" ]]; then
+            sudo systemctl start postgresql || sudo service postgresql start || log_error "Failed to start postgresql. Please start it manually."
+        fi
     fi
+
+    # Database details
+    DB_USER="postgres"
+    DB_PASS="postgres"
+    DB_HOST="localhost"
+    BRIDGE_DB="orbit_bridge"
+    AGENT_DB="orbit_agent"
+
+    log_info "Ensuring databases exist..."
+    if command -v psql &>/dev/null; then
+        # Use -U postgres and assume peer authentication or .pgpass
+        psql -U "$DB_USER" -c "CREATE DATABASE $BRIDGE_DB;" 2>/dev/null || true
+        psql -U "$DB_USER" -c "CREATE DATABASE $AGENT_DB;" 2>/dev/null || true
+    fi
+    
+    BRIDGE_DB_URL="postgresql://$DB_USER:$DB_PASS@$DB_HOST:5432/$BRIDGE_DB"
+    AGENT_DB_URL="postgresql+asyncpg://$DB_USER:$DB_PASS@$DB_HOST:5432/$AGENT_DB"
 else
-    printf "Enter your PostgreSQL URL: "
-    read -r DB_URL < /dev/tty
+    printf "Enter your Bridge PostgreSQL URL: "
+    read -r BRIDGE_DB_URL < /dev/tty
+    printf "Enter your Agent Async PostgreSQL URL (postgresql+asyncpg://...): "
+    read -r AGENT_DB_URL < /dev/tty
 fi
 
 # Create Bridge .env
@@ -133,17 +157,23 @@ APP_NAME=OrbitBridge
 PORT=8443
 NODE_ENV=production
 FRONTEND_URL=https://ayande.xyz
-DB_URL="$DB_URL"
+DATABASE_URL="$BRIDGE_DB_URL"
+DB_SYNCHRONIZE=true
 DB_SSL=false
 JWT_SECRET="$JWT_SECRET"
 AGENT_API_URL=http://localhost:8888
 EOF
 
 # Create Agent .env
-if [ -f "$INSTALL_DIR/agent/.env.example" ]; then
-    cp "$INSTALL_DIR/agent/.env.example" "$INSTALL_DIR/agent/.env"
-    sed -i "s|BRIDGE_URL=.*|BRIDGE_URL=http://localhost:8443|g" "$INSTALL_DIR/agent/.env"
-fi
+cat > "$INSTALL_DIR/agent/.env" << EOF
+PORT=8888
+DEBUG=false
+DATABASE_URL="$AGENT_DB_URL"
+BRIDGE_URL=http://localhost:8443
+BRIDGE_API_KEY="$JWT_SECRET"
+ENCRYPTION_KEY="$ENCRYPTION_KEY"
+FRONTEND_URL=https://ayande.xyz
+EOF
 
 log_success "Configuration created"
 
