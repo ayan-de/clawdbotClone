@@ -23,7 +23,7 @@ export class DatabaseConfig {
       type: 'postgres',
       url: this.getDatabaseUrl(configService),
       entities: [User, OAuthAccount, Session, DesktopConnectionToken],
-      synchronize: synchronize && !isProduction, // Never sync in production
+      synchronize: synchronize, // Allow sync if explicitly set, even in production for v0.0.1
       logging: !isProduction && configService.get<string>('LOG_LEVEL') === 'debug',
       ssl: this.getSSLOptions(isProduction, configService),
       extra: {
