@@ -104,6 +104,49 @@ tar -xzf bridge.tar.gz -C bridge
 download_latest "$CODE_REPO" "desktop-$PLATFORM-$ARCH" "desktop.tar.gz"
 tar -xzf desktop.tar.gz -C desktop
 
+# 4. Configuration
+log_info "Configuring Orbit AI..."
+
+# Generate JWT Secret if needed
+JWT_SECRET=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 32 ; echo '')
+
+# Database Setup
+printf "${YELLOW}Database Setup:${NC} Use local PostgreSQL? (y/n) [y]: "
+read -r use_local < /dev/tty
+use_local=${use_local:-y}
+
+if [[ "$use_local" == "y" ]]; then
+    DB_URL="postgresql://postgres:postgres@localhost:5432/orbit_bridge"
+    log_info "Using default local PostgreSQL URL"
+    log_warn "Ensuring database 'orbit_bridge' exists..."
+    if command -v psql &>/dev/null; then
+        psql -U postgres -c "CREATE DATABASE orbit_bridge;" 2>/dev/null || true
+    fi
+else
+    printf "Enter your PostgreSQL URL: "
+    read -r DB_URL < /dev/tty
+fi
+
+# Create Bridge .env
+cat > "$INSTALL_DIR/bridge/.env" << EOF
+APP_NAME=OrbitBridge
+PORT=8443
+NODE_ENV=production
+FRONTEND_URL=https://ayande.xyz
+DB_URL="$DB_URL"
+DB_SSL=false
+JWT_SECRET="$JWT_SECRET"
+AGENT_API_URL=http://localhost:8888
+EOF
+
+# Create Agent .env
+if [ -f "$INSTALL_DIR/agent/.env.example" ]; then
+    cp "$INSTALL_DIR/agent/.env.example" "$INSTALL_DIR/agent/.env"
+    sed -i "s|BRIDGE_URL=.*|BRIDGE_URL=http://localhost:8443|g" "$INSTALL_DIR/agent/.env"
+fi
+
+log_success "Configuration created"
+
 # Setup PM2
 log_info "Setting up PM2 process manager..."
 if ! command -v pm2 &>/dev/null; then
@@ -133,8 +176,22 @@ EOF
     pm2 save || true
     log_success "Services started via PM2"
 fi
-
+# 5. Launch TUI
 echo ""
+log_info "Waiting for Orbit Bridge to be ready..."
+RETRIES=0
+# Bridge might take a moment to start and run migrations
+until curl -s http://localhost:8443/health &>/dev/null || [ $RETRIES -eq 60 ]; do
+    printf "."
+    sleep 2
+    RETRIES=$((RETRIES+1))
+done
+echo ""
+
+if [ $RETRIES -eq 60 ]; then
+    log_warn "Bridge server is taking a long time to start. Check 'pm2 logs orbit-bridge'."
+fi
+
 echo -e "${YELLOW}To start the Desktop TUI, you need to authorize it:${NC}"
 echo "1. Go to https://ayande.xyz/settings/desktop"
 echo "2. Authorize and copy your Orbit Token"
@@ -145,8 +202,6 @@ while true; do
     if [ -n "$orbit_token" ]; then
         log_info "Starting Desktop TUI..."
         cd "$INSTALL_DIR/desktop"
-        # The user specifically requested 'npm start -- --token <token>'
-        # We assume pnpm/npm is available since the apps rely on it.
         if command -v pnpm &>/dev/null; then
             pnpm start -- --token "$orbit_token"
         else
@@ -154,9 +209,9 @@ while true; do
         fi
         break
     else
-        log_warn "Token is required to start the Desktop TUI. Please paste your token."
+        log_warn "Token is required. Please paste your token."
     fi
 done
 
 log_success "Orbit AI installation complete!"
-rm -f *.tar.gz
+rm -f "$INSTALL_DIR"/*.tar.gz
