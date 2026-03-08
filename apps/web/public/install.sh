@@ -137,9 +137,12 @@ if [[ "$use_local" == "y" ]]; then
 
     log_info "Ensuring databases exist..."
     if command -v psql &>/dev/null; then
-        # Use -U postgres and assume peer authentication or .pgpass
-        psql -U "$DB_USER" -c "CREATE DATABASE $BRIDGE_DB;" 2>/dev/null || true
-        psql -U "$DB_USER" -c "CREATE DATABASE $AGENT_DB;" 2>/dev/null || true
+        # Try creating as current user, then with sudo -u postgres
+        psql -U "$DB_USER" -c "CREATE DATABASE $BRIDGE_DB;" 2>/dev/null || \
+        sudo -u postgres psql -c "CREATE DATABASE $BRIDGE_DB;" 2>/dev/null || true
+        
+        psql -U "$DB_USER" -c "CREATE DATABASE $AGENT_DB;" 2>/dev/null || \
+        sudo -u postgres psql -c "CREATE DATABASE $AGENT_DB;" 2>/dev/null || true
     fi
     
     BRIDGE_DB_URL="postgresql://$DB_USER:$DB_PASS@$DB_HOST:5432/$BRIDGE_DB"
